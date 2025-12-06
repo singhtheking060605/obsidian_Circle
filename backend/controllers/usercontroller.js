@@ -6,7 +6,6 @@ import twilio from "twilio";
 import { sendToken } from "../utils/sendToken.js";
 import crypto from "crypto";
 
-
 const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
 
 // Validate phone number
@@ -38,7 +37,7 @@ function generateEmailTemplate(verificationCode) {
   `;
 }
 
-// Send verification code
+// Send verification code (FIXED - now async and awaits email)
 async function sendVerificationCode(
   verificationMethod,
   verificationCode,
@@ -50,7 +49,16 @@ async function sendVerificationCode(
   try {
     if (verificationMethod === "email") {
       const message = generateEmailTemplate(verificationCode);
-      sendEmail({ email, subject: "The Obsidian Circle - Verification Code", message });
+      
+      // AWAIT the email sending
+      await sendEmail({ 
+        email, 
+        subject: "The Obsidian Circle - Verification Code", 
+        message 
+      });
+      
+      console.log('✅ Verification email sent to:', email);
+      
       res.status(200).json({
         success: true,
         message: `Verification email successfully sent to ${email}`,
@@ -67,6 +75,8 @@ async function sendVerificationCode(
         to: phone,
       });
       
+      console.log('✅ Verification call sent to:', phone);
+      
       res.status(200).json({
         success: true,
         message: `OTP sent to ${phone}`,
@@ -78,18 +88,20 @@ async function sendVerificationCode(
       });
     }
   } catch (error) {
-    console.log(error);
+    console.error('❌ Error sending verification code:', error);
     return res.status(500).json({
       success: false,
-      message: "Verification code failed to send.",
+      message: `Verification code failed to send: ${error.message}`,
     });
   }
 }
 
-// Register user
+// Register user (FIXED - now awaits sendVerificationCode)
 export const register = catchAsyncError(async (req, res, next) => {
   try {
-    const { name, email, phone, password, verificationMethod } = req.body;
+    const { name, email, phone, password, verificationMethod, role } = req.body;
+    
+    console.log('📝 Registration attempt:', { name, email, phone, verificationMethod, role });
     
     if (!name || !email || !phone || !password || !verificationMethod) {
       return next(new ErrorHandler("Please enter all fields", 400));
@@ -131,14 +143,19 @@ export const register = catchAsyncError(async (req, res, next) => {
       email,
       phone,
       password,
-      roles: ['Student'] // Default role
+      roles: role ? [role] : ['Student'] // Use provided role or default to Student
     };
+
+    console.log('👤 Creating user with data:', userData);
 
     const user = await User.create(userData);
     const verificationCode = await user.generateVerificationCode();
     await user.save();
     
-    sendVerificationCode(
+    console.log('🔢 Generated verification code:', verificationCode);
+    
+    // AWAIT the verification code sending
+    await sendVerificationCode(
       verificationMethod,
       verificationCode,
       name,
@@ -147,6 +164,7 @@ export const register = catchAsyncError(async (req, res, next) => {
       res
     );
   } catch (error) {
+    console.error('❌ Registration error:', error);
     return next(new ErrorHandler(error.message, 500));
   }
 });
@@ -154,6 +172,8 @@ export const register = catchAsyncError(async (req, res, next) => {
 // Verify OTP
 export const verifyOTP = catchAsyncError(async (req, res, next) => {
   const { email, otp, phone } = req.body;
+
+  console.log('🔐 OTP verification attempt:', { email, phone, otp });
 
   if (!validatePhoneNumber(phone)) {
     return next(new ErrorHandler("Invalid phone number.", 400));
@@ -186,6 +206,9 @@ export const verifyOTP = catchAsyncError(async (req, res, next) => {
       user = userAllEntries[0];
     }
 
+    console.log('🔍 Found user verification code:', user.verificationCode);
+    console.log('📥 Received OTP:', otp);
+
     if (user.verificationCode !== Number(otp)) {
       return next(new ErrorHandler("Invalid OTP.", 400));
     }
@@ -204,8 +227,11 @@ export const verifyOTP = catchAsyncError(async (req, res, next) => {
     user.verificationCodeExpire = null;
     await user.save({ validateModifiedOnly: true });
 
+    console.log('✅ Account verified successfully');
+
     sendToken(user, 200, "Account verified successfully.", res);
   } catch (error) {
+    console.error('❌ OTP verification error:', error);
     return next(new ErrorHandler("Internal Server Error.", 500));
   }
 });
@@ -265,7 +291,7 @@ export const forgotPassword = catchAsyncError(async (req, res, next) => {
   const message = `Your Reset Password Token is:- \n\n ${resetPasswordUrl} \n\n If you have not requested this email then please ignore it.`;
 
   try {
-    sendEmail({
+    await sendEmail({
       email: user.email,
       subject: "The Obsidian Circle - Reset Password",
       message,
