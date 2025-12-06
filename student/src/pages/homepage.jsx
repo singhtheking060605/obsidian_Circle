@@ -105,7 +105,7 @@ const Homepage = () => {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#dashboard" className="hover:text-red-500 transition-colors">Dashboard</a>
+              <a href="dashboard" className="hover:text-red-500 transition-colors">Dashboard</a>
               <a href="#tasks" className="hover:text-red-500 transition-colors">Tasks</a>
               <a href="#winners" className="hover:text-red-500 transition-colors">Winners</a>
               <a href="#starkconnect" className="hover:text-red-500 transition-colors">StarkConnect</a>
