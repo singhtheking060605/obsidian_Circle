@@ -113,12 +113,17 @@ const Homepage = () => {
 
             {/* Right Side Icons */}
             <div className="flex items-center space-x-4">
-              <button className="p-2 hover:bg-red-900/20 rounded-full transition-colors relative">
-                <BellIcon />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              <button 
+                onClick={() => window.location.href = '/login'}
+                className="hidden md:block px-4 py-2 text-white hover:text-red-400 transition-colors"
+              >
+                Login
               </button>
-              <button className="p-2 hover:bg-red-900/20 rounded-full transition-colors">
-                <UserIcon />
+              <button 
+                onClick={() => window.location.href = '/signup'}
+                className="hidden md:block px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-all transform hover:scale-105 glow-button"
+              >
+                Sign Up
               </button>
               <button 
                 className="md:hidden p-2 hover:bg-red-900/20 rounded-full transition-colors"
@@ -138,6 +143,20 @@ const Homepage = () => {
               <a href="#tasks" className="block hover:text-red-500 transition-colors">Tasks</a>
               <a href="#winners" className="block hover:text-red-500 transition-colors">Winners</a>
               <a href="#starkconnect" className="block hover:text-red-500 transition-colors">StarkConnect</a>
+              <div className="pt-3 border-t border-red-900/30 space-y-2">
+                <button 
+                  onClick={() => window.location.href = '/login'}
+                  className="block w-full text-left hover:text-red-500 transition-colors"
+                >
+                  Login
+                </button>
+                <button 
+                  onClick={() => window.location.href = '/signup'}
+                  className="block w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-semibold transition-all text-center"
+                >
+                  Sign Up
+                </button>
+              </div>
             </div>
           </div>
         )}

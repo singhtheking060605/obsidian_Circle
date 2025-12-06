@@ -28,6 +28,7 @@ Thumbs.db
 # --------------------
 # Your environment variables should NEVER be committed to Git!
 .env
+config.env
 .env.local
 /backend/.env
 /frontend/.env
