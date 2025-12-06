@@ -85,7 +85,11 @@ import { Routes, Route } from 'react-router-dom';
 import HomePage from './pages/homepage.jsx'; 
 import LoginPage from './pages/loginpage.jsx';
 import SignupPage from './pages/signuppage.jsx';
+
 import StudentDashboard from './pages/StudentDashboard.jsx';
+
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 
 function App() {
   return (
@@ -96,8 +100,13 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
 
+
         <Route path="/dashboard" element={<StudentDashboard />} />
         
+
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+<Route path="/password/reset/:token" element={<ResetPasswordPage />} />
+
         {/* Add more routes as you build them */}
         {/* <Route path="/forgot-password" element={<ForgotPasswordPage />} /> */}
         {/* <Route path="/password/reset/:token" element={<ResetPasswordPage />} /> */}

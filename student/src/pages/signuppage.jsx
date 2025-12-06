@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
 
 const SignupPage = () => {
-  const [step, setStep] = useState(1); // 1: Registration, 2: OTP Verification
+  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '+91',
     password: '',
     confirmPassword: '',
-    role: '', // Single role selection
+    role: '',
     verificationMethod: 'email'
   });
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const API_URL = 'http://localhost:4000/api/auth';
 
   const handleChange = (e) => {
     setFormData({
@@ -63,12 +65,41 @@ const SignupPage = () => {
     }
 
     try {
-      // Add your API call here
-      console.log('Registration data:', formData);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('📤 Sending registration request to:', `${API_URL}/register`);
+      console.log('📦 Data:', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        role: formData.role,
+        verificationMethod: formData.verificationMethod
+      });
+
+      const response = await fetch(`${API_URL}/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+          role: formData.role,
+          verificationMethod: formData.verificationMethod
+        }),
+      });
+
+      const data = await response.json();
+      console.log('📥 Response:', data);
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Registration failed');
+      }
+
+      alert(data.message || 'Verification code sent successfully!');
       setStep(2);
     } catch (err) {
+      console.error('❌ Registration error:', err);
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
@@ -80,15 +111,79 @@ const SignupPage = () => {
     setLoading(true);
     setError('');
 
+    if (otp.length !== 5) {
+      setError('Please enter a valid 5-digit OTP');
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Add your API call here
-      console.log('OTP verification:', { email: formData.email, phone: formData.phone, otp });
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('📤 Sending OTP verification request');
+      console.log('📦 Data:', { email: formData.email, phone: formData.phone, otp });
+
+      const response = await fetch(`${API_URL}/verify-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: formData.email,
+          phone: formData.phone,
+          otp: otp
+        }),
+      });
+
+      const data = await response.json();
+      console.log('📥 Response:', data);
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Verification failed');
+      }
+
       alert('Account verified successfully!');
+      // Redirect to dashboard or home
       window.location.href = '/';
     } catch (err) {
+      console.error('❌ Verification error:', err);
       setError(err.message || 'OTP verification failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      console.log('📤 Resending verification code');
+      
+      const response = await fetch(`${API_URL}/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+          role: formData.role,
+          verificationMethod: formData.verificationMethod
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to resend code');
+      }
+
+      alert(data.message || 'New verification code sent!');
+    } catch (err) {
+      console.error('❌ Resend error:', err);
+      setError(err.message || 'Failed to resend code');
     } finally {
       setLoading(false);
     }
@@ -125,7 +220,7 @@ const SignupPage = () => {
                 </div>
               )}
 
-              <div className="space-y-6">
+              <form onSubmit={handleRegister} className="space-y-6">
                 {/* Name Field */}
                 <div>
                   <label className="block text-gray-300 mb-2 font-medium">
@@ -298,13 +393,13 @@ const SignupPage = () => {
 
                 {/* Submit Button */}
                 <button
-                  onClick={handleRegister}
+                  type="submit"
                   disabled={loading}
                   className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-semibold transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none glow-button"
                 >
                   {loading ? 'Creating Account...' : 'Sign Up'}
                 </button>
-              </div>
+              </form>
 
               {/* Divider */}
               <div className="relative my-6">
@@ -342,7 +437,7 @@ const SignupPage = () => {
                 </div>
               )}
 
-              <div className="space-y-6">
+              <form onSubmit={handleVerifyOTP} className="space-y-6">
                 {/* OTP Field */}
                 <div>
                   <label className="block text-gray-300 mb-2 font-medium text-center">
@@ -351,7 +446,7 @@ const SignupPage = () => {
                   <input
                     type="text"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 5))}
                     required
                     maxLength="5"
                     className="w-full px-4 py-3 bg-gray-800/50 border border-red-900/30 rounded-lg text-white text-center text-2xl tracking-widest placeholder-gray-500 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all"
@@ -361,7 +456,7 @@ const SignupPage = () => {
 
                 {/* Verify Button */}
                 <button
-                  onClick={handleVerifyOTP}
+                  type="submit"
                   disabled={loading || otp.length !== 5}
                   className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-semibold transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none glow-button"
                 >
@@ -370,19 +465,25 @@ const SignupPage = () => {
 
                 {/* Resend Code */}
                 <div className="text-center">
-                  <button className="text-red-400 hover:text-red-300 text-sm transition-colors">
+                  <button 
+                    type="button"
+                    onClick={handleResendCode}
+                    disabled={loading}
+                    className="text-red-400 hover:text-red-300 text-sm transition-colors disabled:opacity-50"
+                  >
                     Resend Code
                   </button>
                 </div>
 
                 {/* Back Button */}
                 <button
+                  type="button"
                   onClick={() => setStep(1)}
                   className="w-full bg-gray-800/50 hover:bg-gray-800 border border-red-900/30 hover:border-red-500/50 text-white py-3 rounded-lg font-semibold transition-all"
                 >
                   ← Back to Registration
                 </button>
-              </div>
+              </form>
             </>
           )}
 
