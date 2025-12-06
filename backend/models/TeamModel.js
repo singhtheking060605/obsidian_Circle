@@ -20,7 +20,7 @@ const teamSchema = new mongoose.Schema({
       },
       role: {
         type: String,
-        default: "Member", // e.g., 'Scout', 'Strategist'
+        default: "Member",
       },
     },
   ],
@@ -33,11 +33,11 @@ const teamSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
-  mediaLinks: [
-    {
-      type: String,
-    },
-  ],
+  // Updated to store list of image URLs
+  mediaLinks: {
+    type: [String],
+    default: []
+  },
   createdAt: {
     type: Date,
     default: Date.now,

@@ -5,24 +5,23 @@ const TeamManagement = () => {
   const [loading, setLoading] = useState(true);
   const [teamData, setTeamData] = useState(null);
   const [editMode, setEditMode] = useState(false);
-  const [error, setError] = useState('');
-  
-  const [formData, setFormData] = useState({
-    repoLink: '',
-    description: ''
-  });
-  
-  // Create Team Form State
-  const [createForm, setCreateForm] = useState({ name: '', repoLink: '', description: '' });
+  const [viewMode, setViewMode] = useState('create');
+  const [uploading, setUploading] = useState(false);
 
-  // API Base URL
-  const API_URL = 'http://localhost:4000/api/team';
+  // Form States
+  const [joinName, setJoinName] = useState('');
+  const [createForm, setCreateForm] = useState({ name: '', repoLink: '', description: '' });
+  const [formData, setFormData] = useState({ repoLink: '', description: '' });
+
+  // ACCESS ENVIRONMENT VARIABLES FOR VITE
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/team';
+  const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME; 
+  const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET; 
 
   // Fetch Team Data
   const fetchTeam = async () => {
     try {
       setLoading(true);
-      // Need to ensure credentials are sent for authentication
       const { data } = await axios.get(`${API_URL}/me`, { withCredentials: true });
       
       if (data.success && data.team) {
@@ -36,7 +35,10 @@ const TeamManagement = () => {
       }
     } catch (err) {
       console.error("Error fetching team:", err);
-      setError("Could not establish connection to the Upside Down.");
+      // Don't show error if it's just "no team found" (404 or null return)
+      if (err.response && err.response.data && !err.response.data.team) {
+          setTeamData(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -46,29 +48,83 @@ const TeamManagement = () => {
     fetchTeam();
   }, []);
 
-  // Handle Team Creation
   const handleCreateTeam = async (e) => {
     e.preventDefault();
     try {
       const { data } = await axios.post(`${API_URL}/create`, createForm, { withCredentials: true });
       if (data.success) {
-        fetchTeam(); // Refresh data
+        alert("Team Assembled Successfully!");
+        fetchTeam();
       }
     } catch (err) {
       alert(err.response?.data?.message || "Failed to create party.");
     }
   };
 
-  // Handle Team Updates
+  const handleJoinTeam = async (e) => {
+    e.preventDefault();
+    try {
+      const { data } = await axios.put(`${API_URL}/join`, { teamName: joinName }, { withCredentials: true });
+      if (data.success) {
+        alert("Joined Party Successfully!");
+        fetchTeam();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to join team.");
+    }
+  };
+
   const handleUpdate = async () => {
     try {
       const { data } = await axios.put(`${API_URL}/update`, formData, { withCredentials: true });
       if (data.success) {
         setTeamData(data.team);
         setEditMode(false);
+        alert("Team details updated!");
       }
     } catch (err) {
       alert("Failed to update details.");
+    }
+  };
+
+  // --- IMAGE UPLOAD LOGIC ---
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validation for environment variables
+    if (!CLOUD_NAME || !UPLOAD_PRESET) {
+      alert("Cloudinary configuration is missing in .env file");
+      return;
+    }
+
+    setUploading(true);
+    const uploadData = new FormData();
+    uploadData.append("file", file);
+    uploadData.append("upload_preset", UPLOAD_PRESET); 
+
+    try {
+      // 1. Upload to Cloudinary
+      const res = await axios.post(
+        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+        uploadData
+      );
+      
+      const imageUrl = res.data.secure_url;
+
+      // 2. Send URL to Backend
+      const { data } = await axios.put(`${API_URL}/update`, { mediaLink: imageUrl }, { withCredentials: true });
+
+      if (data.success) {
+        setTeamData(data.team);
+        alert("Evidence uploaded successfully!");
+      }
+
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert("Failed to upload image.");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -80,44 +136,99 @@ const TeamManagement = () => {
     );
   }
 
-  // View: Create Team (If no team found)
+  // --- VIEW: NO TEAM (CREATE OR JOIN) ---
   if (!teamData) {
     return (
-      <div className="max-w-2xl mx-auto p-8 bg-black/60 border border-red-900/30 rounded-xl glow-box text-center animate-fade-in">
-        <h2 className="text-3xl text-red-500 glow-text font-creepster mb-6">No Party Found</h2>
-        <p className="text-gray-400 mb-8">It's dangerous to go alone. Form a party to enter the Upside Down.</p>
-        
-        <form onSubmit={handleCreateTeam} className="space-y-4 text-left">
-          <div>
-            <label className="block text-gray-500 text-xs uppercase tracking-widest mb-2">Party Name</label>
-            <input 
-              type="text" 
-              required
-              className="w-full bg-gray-900/50 border border-red-900/30 rounded p-3 text-white focus:border-red-500 outline-none"
-              placeholder="e.g. The Hellfire Club"
-              value={createForm.name}
-              onChange={(e) => setCreateForm({...createForm, name: e.target.value})}
-            />
+      <div className="max-w-3xl mx-auto mt-10">
+        <div className="bg-black/60 border border-red-900/50 rounded-xl p-8 glow-box backdrop-blur-sm transition-all duration-500">
+          
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-red-500 glow-text font-creepster tracking-wider mb-2">
+              {viewMode === 'create' ? 'Assemble Your Party' : 'Join a Party'}
+            </h2>
+            <p className="text-gray-400">
+              You are currently not in a team. 
+            </p>
           </div>
-          <div>
-            <label className="block text-gray-500 text-xs uppercase tracking-widest mb-2">Repo Link (Optional)</label>
-            <input 
-              type="text" 
-              className="w-full bg-gray-900/50 border border-red-900/30 rounded p-3 text-white focus:border-red-500 outline-none"
-              placeholder="https://github.com/..."
-              value={createForm.repoLink}
-              onChange={(e) => setCreateForm({...createForm, repoLink: e.target.value})}
-            />
+
+          <div className="flex justify-center gap-4 mb-8">
+             <button 
+               onClick={() => setViewMode('create')}
+               className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-300 ${viewMode === 'create' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]' : 'bg-gray-900 text-gray-500 border border-gray-700 hover:border-red-900 hover:text-red-400'}`}
+             >
+               CREATE NEW
+             </button>
+             <button 
+               onClick={() => setViewMode('join')}
+               className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-300 ${viewMode === 'join' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]' : 'bg-gray-900 text-gray-500 border border-gray-700 hover:border-red-900 hover:text-red-400'}`}
+             >
+               JOIN EXISTING
+             </button>
           </div>
-          <button className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded font-bold glow-button transition-all">
-            Create Party
-          </button>
-        </form>
+
+          {viewMode === 'create' && (
+            <form onSubmit={handleCreateTeam} className="space-y-6 animate-fade-in">
+              <div>
+                <label className="block text-gray-300 text-sm font-bold mb-2">Team Name</label>
+                <input 
+                  type="text" 
+                  required
+                  className="w-full bg-gray-900/50 border border-red-900/30 rounded-lg px-4 py-3 text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 transition-all placeholder-gray-600"
+                  placeholder="e.g. The Hellfire Club"
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm({...createForm, name: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-gray-300 text-sm font-bold mb-2">GitHub Repository (Optional)</label>
+                <input 
+                  type="url" 
+                  className="w-full bg-gray-900/50 border border-red-900/30 rounded-lg px-4 py-3 text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 transition-all placeholder-gray-600"
+                  placeholder="https://github.com/username/project"
+                  value={createForm.repoLink}
+                  onChange={(e) => setCreateForm({...createForm, repoLink: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-gray-300 text-sm font-bold mb-2">Description</label>
+                <textarea 
+                  className="w-full bg-gray-900/50 border border-red-900/30 rounded-lg px-4 py-3 text-white focus:border-red-500 focus:outline-none h-32 resize-none placeholder-gray-600"
+                  placeholder="Our mission is..."
+                  value={createForm.description}
+                  onChange={(e) => setCreateForm({...createForm, description: e.target.value})}
+                />
+              </div>
+              <button className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-all glow-button uppercase tracking-widest">
+                Create Team
+              </button>
+            </form>
+          )}
+
+          {viewMode === 'join' && (
+            <form onSubmit={handleJoinTeam} className="space-y-6 animate-fade-in">
+              <div className="py-8">
+                <label className="block text-gray-300 text-sm font-bold mb-2">Enter Exact Team Name</label>
+                <input 
+                  type="text" 
+                  required
+                  className="w-full bg-gray-900/50 border border-red-900/30 rounded-lg px-4 py-3 text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 transition-all placeholder-gray-600"
+                  placeholder="e.g. The Hellfire Club"
+                  value={joinName}
+                  onChange={(e) => setJoinName(e.target.value)}
+                />
+                <p className="text-xs text-gray-500 mt-2">Ask your team leader for the exact name.</p>
+              </div>
+              <button className="w-full bg-transparent border border-red-600 text-red-500 hover:bg-red-900/20 font-bold py-3 rounded-lg transition-all uppercase tracking-widest">
+                Search & Join
+              </button>
+            </form>
+          )}
+        </div>
       </div>
     );
   }
 
-  // View: Team Management Dashboard
+  // --- VIEW: HAS TEAM (DASHBOARD) ---
   return (
     <div className="space-y-8 animate-fade-in w-full">
       
@@ -154,14 +265,14 @@ const TeamManagement = () => {
                     type="text" 
                     className="bg-transparent border-none w-full text-white focus:outline-none"
                     value={formData.repoLink}
-                    placeholder="Update Git Link..."
+                    placeholder="https://github.com/..."
                     onChange={(e) => setFormData({...formData, repoLink: e.target.value})}
                   />
                 ) : (
                   <span className="truncate">{teamData.repoLink || "No repo linked"}</span>
                 )}
               </div>
-              {teamData.repoLink && (
+              {teamData.repoLink && !editMode && (
                 <a 
                   href={teamData.repoLink}
                   target="_blank"
@@ -203,7 +314,61 @@ const TeamManagement = () => {
         </div>
       </div>
 
-      {/* Bottom Section: Project Log */}
+      {/* Middle Section: Project Media */}
+      <div className="bg-black/60 border border-red-900/30 rounded-xl p-6 glow-box transition-all duration-300 ease-in-out">
+        <div className="flex justify-between items-center mb-6">
+          <label className="text-xs text-red-500 uppercase tracking-widest font-bold">Project Media / Evidence</label>
+          
+          {/* Hidden File Input */}
+          <input 
+            type="file" 
+            id="mediaUpload" 
+            accept="image/*" 
+            className="hidden" 
+            onChange={handleImageUpload} 
+            disabled={uploading}
+          />
+
+          <button 
+            onClick={() => document.getElementById('mediaUpload').click()}
+            disabled={uploading}
+            className="text-xs bg-red-900/20 text-red-400 px-3 py-1 rounded border border-red-900/50 hover:bg-red-900/40 transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            {uploading ? (
+              <>
+                <span className="w-3 h-3 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></span>
+                Uploading...
+              </>
+            ) : (
+              'Upload Media'
+            )}
+          </button>
+        </div>
+        
+        {/* Media Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+          {teamData.mediaLinks && teamData.mediaLinks.length > 0 ? (
+            teamData.mediaLinks.map((link, idx) => (
+              <div key={idx} className="aspect-video bg-gray-900/50 rounded-lg border border-gray-800 hover:border-red-500/50 relative group overflow-hidden cursor-pointer transition-all duration-300">
+                <img 
+                  src={link} 
+                  alt="Project Screenshot" 
+                  className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"
+                />
+                <a href={link} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                  <span className="text-xs text-white font-bold">View Full</span>
+                </a>
+              </div>
+            ))
+          ) : (
+             <div className="col-span-full py-8 text-center border-2 border-dashed border-gray-800 rounded-xl text-gray-600 text-sm italic">
+               No evidence uploaded yet.
+             </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom Section: Writing/Description Area */}
       <div className="bg-black/60 border border-red-900/30 rounded-xl p-6 glow-box transition-all duration-300 ease-in-out">
         <div className="flex justify-between items-center mb-4">
           <label className="text-xs text-red-500 uppercase tracking-widest font-bold">
@@ -221,9 +386,9 @@ const TeamManagement = () => {
               onChange={(e) => setFormData({...formData, description: e.target.value})}
             ></textarea>
           ) : (
-             <div className="relative w-full h-40 xl:h-64 bg-gray-900/40 border border-gray-800/50 rounded-lg p-4 text-gray-300 font-mono text-sm overflow-y-auto whitespace-pre-wrap">
+            <div className="relative w-full h-40 xl:h-64 bg-gray-900/40 border border-gray-800/50 rounded-lg p-4 text-gray-300 font-mono text-sm overflow-y-auto whitespace-pre-wrap">
                {teamData.description || "No log entries found in the archives."}
-             </div>
+            </div>
           )}
         </div>
         
