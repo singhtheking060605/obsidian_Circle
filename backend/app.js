@@ -43,6 +43,8 @@ import { fileURLToPath } from "url";
 import { connectDatabase } from "./config/database.js";
 import userRoutes from "./routes/userRoutes.js";
 
+import teamRoutes from "./routes/teamRoutes.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -76,6 +78,7 @@ app.use(cors({
 
 // Routes
 app.use("/api/auth", userRoutes);
+app.use("/api/team", teamRoutes);
 
 app.get("/", (req, res) => {
   res.json({ 

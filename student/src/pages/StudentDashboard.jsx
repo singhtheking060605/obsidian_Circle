@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import TeamManagement from '../components/TeamManagement';
+import { useAuth } from '../context/AuthContext'; // Import hook
 
 const StudentDashboard = () => {
+  const { user } = useAuth(); // Access user data
   const [activeTab, setActiveTab] = useState('all-tasks');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -46,7 +48,7 @@ const StudentDashboard = () => {
 
   return (
     <div className="min-h-screen bg-black text-gray-100 font-sans selection:bg-red-900 selection:text-white overflow-x-hidden">
-      <Navbar onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+      <Navbar isDashboard={true} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
 
       <div className="flex pt-16 relative">
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isOpen={isSidebarOpen} />
@@ -69,7 +71,7 @@ const StudentDashboard = () => {
                   {activeTab.replace(/-/g, ' ')}
                 </h2>
                 <p className="text-gray-400 text-sm md:text-base max-w-2xl">
-                  Welcome to the portal, traveler. Choose your path wisely.
+                    Welcome back, Agent {user?.name || 'Unknown'}. Status: Online.
                 </p>
               </div>
               
