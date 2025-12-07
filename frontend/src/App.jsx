@@ -1,7 +1,3 @@
-
-
-
-
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 
@@ -13,8 +9,10 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 
 // Protected Pages
+// ✅ FIXED: Make sure the import matches the EXACT file name
 import StudentDashboard from './pages/StudentDashboard.jsx';
-import ProtectedRoute from './components/ProtectedRoute.jsx'; // Import the guard
+import AcceptInvitationPage from './pages/AcceptInvitationPage.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 function App() {
   return (
@@ -26,12 +24,14 @@ function App() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/password/reset/:token" element={<ResetPasswordPage />} />
+        
+        {/* Accept Team Invitation - Public Route */}
+        <Route path="/accept-invitation/:token" element={<AcceptInvitationPage />} />
 
         {/* Protected Routes - Only accessible if logged in */}
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<StudentDashboard />} />
         </Route>
-
       </Routes>
     </div>
   );

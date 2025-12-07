@@ -49,6 +49,16 @@ const userSchema = new mongoose.Schema({
     default: false 
   },
   
+
+branch: {
+  type: String,
+  trim: true
+},
+rollNumber: {
+  type: String,
+  trim: true
+},
+
   // Verification
   accountVerified: { 
     type: Boolean, 
@@ -68,6 +78,9 @@ const userSchema = new mongoose.Schema({
   // Password Reset
   resetPasswordToken: String,
   resetPasswordExpire: Date,
+  
+
+
   
   // Timestamps
   createdAt: { 
