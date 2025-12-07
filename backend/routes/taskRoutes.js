@@ -23,4 +23,22 @@ router
   .put(isAuthenticated, authorizeRoles("Admin", "Alumni"), updateTask)
   .delete(isAuthenticated, authorizeRoles("Admin", "Alumni"), deleteTask);
 
+
+  // ... existing imports
+import { 
+    createTask, 
+    getAllTasks, 
+    getSingleTask, 
+    updateTask, 
+    deleteTask,
+    assignTeamToTask,   // Import this
+    getAllAssignments   // Import this
+} from "../controllers/taskController.js";
+
+// ... existing routes
+
+// Assignment Routes
+router.route("/assign").post(isAuthenticated, authorizeRoles("Admin", "Alumni"), assignTeamToTask);
+router.route("/assignments/all").get(isAuthenticated, authorizeRoles("Admin", "Alumni"), getAllAssignments);
+
 export default router;

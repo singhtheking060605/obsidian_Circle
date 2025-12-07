@@ -11,7 +11,7 @@ import LoginPage from './pages/loginpage.jsx';
 import SignupPage from './pages/signuppage.jsx';
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
-
+import AdminTaskPage from './pages/admin/AdminTaskPage.jsx';
 // Protected Pages
 import StudentDashboard from './pages/StudentDashboard.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx'; // Import the guard
@@ -30,6 +30,8 @@ function App() {
         {/* Protected Routes - Only accessible if logged in */}
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<StudentDashboard />} />
+          <Route path="/mentor/tasks" element={<AdminTaskPage />} />
+          <Route path="/mentor/teams" element={<AdminTeamsPage />} />
         </Route>
 
       </Routes>

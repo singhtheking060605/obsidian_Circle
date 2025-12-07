@@ -258,3 +258,13 @@ export const updateTeam = catchAsyncError(async (req, res, next) => {
     
     res.status(200).json({ success: true, message: "Updated", team: updatedTeam });
 });
+
+
+export const getAllTeams = catchAsyncError(async (req, res, next) => {
+    // Populate leader details for contact info
+    const teams = await Team.find()
+        .populate("leader", "name email")
+        .sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, teams });
+});
