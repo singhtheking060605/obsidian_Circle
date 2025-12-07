@@ -2,6 +2,7 @@ import "./config/env.js";
 import dotenv from "dotenv";
 import { app } from "./app.js";
 import { connectDatabase } from "./config/database.js";
+import { cloudinary } from "./config/cloudinary.js"; 
 
 // Load from config.env in current directory
 dotenv.config({ path: './config.env' });

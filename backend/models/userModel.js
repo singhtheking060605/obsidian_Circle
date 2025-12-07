@@ -5,79 +5,95 @@ import crypto from 'crypto';
 
 const userSchema = new mongoose.Schema({
   // Core Identity
-  email: { 
-    type: String, 
-    required: [true, "Please enter your email"], 
-    unique: true, 
+  email: {
+    type: String,
+    required: [true, "Please enter your email"],
+    unique: true,
     trim: true,
-    lowercase: true
+    lowercase: true,
   },
-  password: { 
-    type: String, 
+  password: {
+    type: String,
     required: [true, "Please enter your password"],
     minlength: [8, "Password must be at least 8 characters"],
-    select: false 
+    select: false,
   },
-  name: { 
-    type: String, 
+  name: {
+    type: String,
     required: [true, "Please enter your name"],
-    trim: true
+    trim: true,
   },
-  phone: { 
-    type: String, 
+  phone: {
+    type: String,
     required: [true, "Please enter your phone number"],
     unique: true,
-    trim: true
+    trim: true,
   },
-  
+
   // Role Management
-  roles: [{ 
-    type: String, 
-    enum: ['Mentor', 'Student'], 
-    default: 'Student' 
-  }],
-  
+  roles: [
+    {
+      type: String,
+      enum: ["Mentor", "Student"],
+      default: "Student",
+    },
+  ],
+
   // Status
-  status: { 
-    type: String, 
-    enum: ['Active', 'Banned', 'Restricted', 'Pending'], 
-    default: 'Pending' 
+  status: {
+    type: String,
+    enum: ["Active", "Banned", "Restricted", "Pending"],
+    default: "Pending",
   },
-  
-  isAlumnus: { 
-    type: Boolean, 
-    default: false 
+
+  isAlumnus: {
+    type: Boolean,
+    default: false,
   },
-  
+
   // Verification
-  accountVerified: { 
-    type: Boolean, 
-    default: false 
+  accountVerified: {
+    type: Boolean,
+    default: false,
   },
-  emailVerified: { 
-    type: Boolean, 
-    default: false 
+  emailVerified: {
+    type: Boolean,
+    default: false,
   },
-  verificationCode: { 
-    type: Number 
+  verificationCode: {
+    type: Number,
   },
-  verificationCodeExpire: { 
-    type: Date 
+  verificationCodeExpire: {
+    type: Date,
   },
-  
+  profilePhoto: {
+    type: String, // Will store Cloudinary URL
+    default: "https://api.dicebear.com/7.x/avataaars/svg?seed=default",
+  },
+  resume: {
+    type: String, // Will store Cloudinary URL
+  },
+  bio: {
+    type: String,
+    maxlength: [500, "Bio cannot exceed 500 characters"],
+  },
+  github: {
+    type: String, // Will store the GitHub URL/username
+    trim: true,
+  },
   // Password Reset
   resetPasswordToken: String,
   resetPasswordExpire: Date,
-  
+
   // Timestamps
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
+  createdAt: {
+    type: Date,
+    default: Date.now,
   },
-  updatedAt: { 
-    type: Date, 
-    default: Date.now 
-  }
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 // Hash password before saving
