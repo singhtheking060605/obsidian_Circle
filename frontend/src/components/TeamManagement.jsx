@@ -505,7 +505,7 @@ const TeamManagement = () => {
 
     const handleUpdate = async () => {
         try {
-            // Sends formData, which includes the AI-generated description
+            // Sends formData, which includes the AI-generated or manually edited description
             const { data } = await axios.put(`${API_URL}/update`, formData, { withCredentials: true }); 
             if (data.success) {
                 setTeamData(data.team); // Updates state with the saved description from the server
@@ -518,68 +518,63 @@ const TeamManagement = () => {
         }
     };
 
-  // In TeamManagement.jsx
+    // --- AI DESCRIPTION GENERATION (FINAL CRITICAL FIX) ---
+    const handleGenerateDescription = async () => {
+        if (!projectTitle.trim()) {
+            alert('Please enter a project title first!');
+            return;
+        }
 
-// --- AI DESCRIPTION GENERATION (FINAL DEBUGGED RESET) ---
-const handleGenerateDescription = async () => {
-    if (!projectTitle.trim()) {
-        alert('Please enter a project title first!');
-        return;
-    }
+        setGenerating(true);
+        
+        // DEBUG: Log the input to the browser console before the API call
+        console.log("Attempting to generate description for:", projectTitle, "Length:", descriptionLength);
 
-    setGenerating(true);
-    
-    // DEBUG: Log the input to the browser console before the API call
-    console.log("Attempting to generate description for:", projectTitle, "Length:", descriptionLength);
+        try {
+            const { data } = await axios.post(
+                `${API_URL}/generate-description`,
+                { 
+                    prompt: projectTitle,
+                    length: descriptionLength 
+                },
+                { withCredentials: true }
+            );
 
-    try {
-        const { data } = await axios.post(
-            `${API_URL}/generate-description`,
-            { 
-                prompt: projectTitle,
-                length: descriptionLength 
-            },
-            { withCredentials: true }
-        );
-
-        if (data.success) {
-            const generatedContent = data.content;
-            
-            // DEBUG: Log the successfully received content
-            console.log("Successfully received generated content.");
-            
-            // Update the correct form state
-            if (teamData) {
-                setFormData(prevFormData => ({ 
-                    ...prevFormData, 
-                    description: generatedContent 
-                }));
+            if (data.success) {
+                const generatedContent = data.content;
+                
+                // CRITICAL FIX: Update the correct form state to display generated text immediately
+                if (teamData) {
+                    setFormData(prevFormData => ({ 
+                        ...prevFormData, 
+                        description: generatedContent 
+                    }));
+                } else {
+                    setCreateForm(prevCreateForm => ({
+                        ...prevCreateForm,
+                        description: generatedContent
+                    }));
+                }
+                
+                alert('Description generated successfully! It is now loaded into the description box. Click "Save Log" to finalize.');
             } else {
-                setCreateForm(prevCreateForm => ({
-                    ...prevCreateForm,
-                    description: generatedContent
-                }));
+                 // Handle case where server returns success: false
+                 alert(data.message || 'Failed to generate description (Server reported failure).');
             }
             
-            alert('Description generated successfully! It is now loaded into the description box. Click "Save Log" to finalize.');
-        } else {
-             // Handle case where server returns success: false
-             alert(data.message || 'Failed to generate description (Server reported failure).');
-        }
-        
-    } catch (err) {
-        console.error('Generation error:', err);
-        
-        // CRITICAL FIX: Ensure state is reset explicitly on API failure
-        setGenerating(false); 
-        
-        alert(err.response?.data?.message || 'Failed to generate description. Check your API quota or network connection.');
+        } catch (err) {
+            console.error('Generation error:', err);
+            
+            // CRITICAL FIX: Ensure state is reset explicitly on API failure
+            setGenerating(false); 
+            
+            alert(err.response?.data?.message || 'Failed to generate description. Check your API quota or network connection.');
 
-    } finally {
-        // Ensure state is reset after successful attempt
-        setGenerating(false); 
-    }
-};
+        } finally {
+            // Final reset check
+            setGenerating(false); 
+        }
+    };
 
     // --- IMAGE UPLOAD LOGIC ---
     const handleImageUpload = async (e) => {

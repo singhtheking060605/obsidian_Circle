@@ -10,7 +10,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
 async function main(prompt, length = 'long') {
     
     // DEBUG: Confirm prompt received (Visible in your Node.js terminal)
-    console.log("Gemini Input Prompt Received:", prompt);
+    console.log("Gemini Input Prompt Received:", prompt, "Length Parameter:", length);
     
     let systemInstruction = "";
     let maxTokens = 0;

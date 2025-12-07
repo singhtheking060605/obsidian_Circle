@@ -229,7 +229,6 @@ export const updateTeam = catchAsyncError(async (req, res, next) => {
 
     const updateFields = {};
     
-    // CRITICAL: Explicitly include description and repoLink if they were sent
     if (description !== undefined) { 
         updateFields.description = description; 
     }
@@ -243,7 +242,7 @@ export const updateTeam = catchAsyncError(async (req, res, next) => {
         existingTeam._id,
         { 
             $set: updateFields, 
-            ...(mediaLink && { $push: { mediaLinks: mediaLink } }) // Conditionally push mediaLink
+            ...(mediaLink && { $push: { mediaLinks: mediaLink } }) 
         },
         { 
             new: true, // GUARANTEES the saved description is returned to the frontend
