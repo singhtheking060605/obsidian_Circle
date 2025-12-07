@@ -10,10 +10,10 @@ import {
 
 const router = express.Router();
 
-// Public Routes (Accessible to all logged-in users, frontend handles filtering for students)
+// Public Routes (Accessible to all logged-in users)
 router.route("/all").get(isAuthenticated, getAllTasks);
 
-// Administrative Routes (Restricted to Admin/Alumni)
+// Administrative Routes (Restricted to Admin and Alumni)
 router.route("/new").post(isAuthenticated, authorizeRoles("Admin", "Alumni"), createTask);
 
 // Routes for specific Task operations by ID

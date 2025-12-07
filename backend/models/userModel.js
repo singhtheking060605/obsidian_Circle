@@ -30,10 +30,10 @@ const userSchema = new mongoose.Schema({
     trim: true
   },
   
-  // Role Management
+  // Role Management - Updated to your requirements
   roles: [{ 
     type: String, 
-    enum: ['Mentor', 'Student'], 
+    enum: ['Student', 'Alumni', 'Admin'], 
     default: 'Student' 
   }],
   
@@ -177,7 +177,6 @@ const mentorProfileSchema = new mongoose.Schema({
     default: Date.now 
   }
 });
-
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 const MentorProfile = mongoose.models.MentorProfile || mongoose.model('MentorProfile', mentorProfileSchema);

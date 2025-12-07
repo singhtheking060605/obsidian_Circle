@@ -1,19 +1,34 @@
+import "../config/env.js";
+
 export const sendToken = (user, statusCode, message, res) => {
-  const token = user.generateToken();
-  
+  const token = user.getJWTToken();
+
   const options = {
     expires: new Date(
-      Date.now() + (process.env.COOKIE_EXPIRE || 7) * 24 * 60 * 60 * 1000
+      Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000
     ),
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   };
 
-  res.status(statusCode).cookie('token', token, options).json({
-    success: true,
-    message,
-    user,
-    token,
-  });
+  // Determine redirect based on role
+  let targetUrl = "";
+  
+  if (user.roles.includes("Admin")) {
+    // Admin is on 5173
+    targetUrl = `${process.env.ADMIN_URL}/auth-receiver?token=${token}`;
+  } else {
+    // Student is on 5174
+    targetUrl = "/student/dashboard";
+  }
+
+  res
+    .status(statusCode)
+    .cookie("token", token, options)
+    .json({
+      success: true,
+      message,
+      token,
+      user,
+      redirectUrl: targetUrl 
+    });
 };

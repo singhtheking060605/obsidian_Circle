@@ -1,113 +1,96 @@
-// import React from 'react';
-// import { Routes, Route } from 'react-router-dom';
-// // The AuthProvider is imported from context, not the main app directory.
-// // import { AuthProvider } from './context/AuthContext'; 
-// // ProtectedRoute is a component and should be imported from the components directory.
-// // import ProtectedRoute from './components/ProtectedRoute'; 
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 
-// // --- Public Pages ---
-// // These are top-level pages and should be imported directly from the pages directory.
-// import HomePage from './pages/homepage.jsx'; 
-// // import LoginPage from './pages/LoginPage'; 
-// // import NotFoundPage from './pages/NotFoundPage'; 
+// Import Components and Pages
+import Navbar from './components/Navbar';
+import Dashboard from './pages/Dashboard';
+import Tasks from './pages/Tasks';
+import Rankings from './pages/Rankings';
+import Referrals from './pages/Referrals';
+import QASession from './pages/QASession';
+import Teams from './pages/Teams';
 
-// // // --- Student Pages ---
-// // // These are specific to the student folder structure.
-// // import StudentDashboard from './student/pages/StudentDashboard';
-// // import TaskListView from './student/pages/TaskListView';
-// // import TaskDetailsPage from './student/pages/TaskDetailsPage';
+// --- Helper Components ---
 
-// // // --- Mentor/Alumni Pages ---
-// // // These are specific to the mentor folder structure.
-// // import MentorDashboard from './mentor/pages/MentorDashboard';
-// // import PostTaskPage from './mentor/pages/PostTaskPage';
-// // import MentorProfilePage from './mentor/pages/MentorProfilePage';
+// 1. Catches the backend redirect, saves token, and pushes to Dashboard
+const AuthReceiver = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
-// // // --- Admin Pages ---
-// // // These are specific to the admin folder structure.
-// // import AdminDashboard from './admin/pages/AdminDashboard';
-// // import UserManagementPage from './admin/pages/UserManagementPage';
+  useEffect(() => {
+    const token = searchParams.get('token');
+    if (token) {
+      console.log("Token received, saving to localStorage...");
+      localStorage.setItem('adminToken', token);
+      // Use replace to prevent back-button loops
+      navigate('/dashboard', { replace: true });
+    } else {
+      console.error("No token found in redirect.");
+      // Fallback to login if something breaks
+      window.location.href = 'http://localhost:5173/login';
+    }
+  }, [searchParams, navigate]);
 
+  return <div className="min-h-screen flex items-center justify-center bg-gray-50">Authenticating...</div>;
+};
 
-// function App() {
-//   return (
-//     <div className="App">
-//         {/* AuthProvider should ideally wrap App in main.jsx, but included here for completeness */}
-//         {/* <AuthProvider> */}
-//             <Routes>
-//                 {/* 1. Public Routes */}
-//                 <Route path="/" element={<HomePage />} />
-//                 {/* Comment out LoginPage route since it's not imported yet */}
-//                 {/* <Route path="/login" element={<LoginPage />} /> */}
-                
-//                 {/* 2. Authenticated Student/Mentor Routes (Tasks are open to both roles) */}
-//                 {/* <Route element={<ProtectedRoute allowedRoles={['Student', 'Mentor']} />}> */}
-//                     {/* The main dashboard for students is often the base dashboard route */}
-//                     {/* <Route path="/dashboard" element={<StudentDashboard />} />  */}
-//                     {/* <Route path="/tasks" element={<TaskListView />} /> */}
-//                     {/* <Route path="/tasks/:taskId" element={<TaskDetailsPage />} /> */}
-//                 {/* </Route> */}
-                
-//                 {/* 3. Authenticated Mentor/Alumni Routes (requires 'Mentor' role for management) */}
-//                 {/* <Route element={<ProtectedRoute allowedRoles={['Mentor']} />}> */}
-//                     {/* Mentor-specific dashboard view */}
-//                     {/* <Route path="/mentor/dashboard" element={<MentorDashboard />} />  */}
-//                     {/* <Route path="/mentor/post-task" element={<PostTaskPage />} /> */}
-//                     {/* Profile is accessible by anyone, but we put it here to reuse the protection element for Mentors */}
-//                     {/* <Route path="/profile" element={<MentorProfilePage />} />  */}
-//                 {/* </Route> */}
+// 2. Protects routes: If no token, kick to external login
+const ProtectedLayout = ({ children }) => {
+  const token = localStorage.getItem('adminToken');
 
-//                 {/* 4. Authenticated Admin Routes (requires 'Admin' role for governance) */}
-//                 {/* <Route element={<ProtectedRoute allowedRoles={['Admin']} />}>
-//                     <Route path="/admin/dashboard" element={<AdminDashboard />} />
-//                     <Route path="/admin/users" element={<UserManagementPage />} /> */}
-//                     {/* Placeholder routes for other Admin features */}
-//                     {/* <Route path="/admin/moderation" element={<div>Task Moderation Component</div>} />
-//                     <Route path="/admin/disputes" element={<div>Dispute Resolution Component</div>} />
-//                 </Route> */}
+  if (!token) {
+    window.location.href = 'http://localhost:5173/login';
+    return null;
+  }
 
-//                 {/* 5. Catch-all Route */}
-//                 {/* <Route path="*" element={<NotFoundPage />} /> */}
-//             </Routes>
-//         {/* </AuthProvider> */}
-//     </div>
-//   );
-// }
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {children}
+      </main>
+    </div>
+  );
+};
 
-// export default App;
+// 3. Handles the root "/" path safely
+const RootRedirect = () => {
+  const token = localStorage.getItem('adminToken');
+  if (token) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  // Force hard redirect to external login if not authenticated
+  useEffect(() => {
+    window.location.href = 'http://localhost:5173/login';
+  }, []);
+  
+  return null;
+}
 
-
-
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-
-// Public Pages
-import HomePage from './pages/homepage.jsx'; 
-import LoginPage from './pages/loginpage.jsx';
-import SignupPage from './pages/signuppage.jsx';
+// --- Main App ---
 
 function App() {
   return (
-    <div className="App">
+    <Router>
       <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        
-        {/* Add more routes as you build them */}
-        {/* <Route path="/forgot-password" element={<ForgotPasswordPage />} /> */}
-        {/* <Route path="/password/reset/:token" element={<ResetPasswordPage />} /> */}
-        
-        {/* Protected Routes - Add later */}
-        {/* <Route path="/dashboard" element={<StudentDashboard />} /> */}
-        {/* <Route path="/tasks" element={<TaskListView />} /> */}
-        {/* <Route path="/mentor/dashboard" element={<MentorDashboard />} /> */}
-        
-        {/* Catch-all Route */}
-        {/* <Route path="*" element={<NotFoundPage />} /> */}
+        {/* Entry Point */}
+        <Route path="/" element={<RootRedirect />} />
+
+        {/* Auth Handshake - Must be Public */}
+        <Route path="/auth-receiver" element={<AuthReceiver />} />
+
+        {/* Protected Routes */}
+        <Route path="/dashboard" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
+        <Route path="/tasks" element={<ProtectedLayout><Tasks /></ProtectedLayout>} />
+        <Route path="/rankings" element={<ProtectedLayout><Rankings /></ProtectedLayout>} />
+        <Route path="/referrals" element={<ProtectedLayout><Referrals /></ProtectedLayout>} />
+        <Route path="/qa-session" element={<ProtectedLayout><QASession /></ProtectedLayout>} />
+        <Route path="/teams" element={<ProtectedLayout><Teams /></ProtectedLayout>} />
+
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </div>
+    </Router>
   );
 }
 

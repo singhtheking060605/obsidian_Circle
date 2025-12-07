@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import Navbar from '../components/Navbar'; 
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Homepage = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [currentMentorIndex, setCurrentMentorIndex] = useState(0);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const slidingImages = [
     "https://images.unsplash.com/photo-1504805572947-34fad45aed93?w=800&h=500&fit=crop",
@@ -60,119 +64,25 @@ const Homepage = () => {
     return () => clearInterval(mentorInterval);
   }, []);
 
-  // SVG Icons as components
-  const BellIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-      <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-    </svg>
-  );
-
-  const UserIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-      <circle cx="12" cy="7" r="4"></circle>
-    </svg>
-  );
-
-  const MenuIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <line x1="3" y1="12" x2="21" y2="12"></line>
-      <line x1="3" y1="6" x2="21" y2="6"></line>
-      <line x1="3" y1="18" x2="21" y2="18"></line>
-    </svg>
-  );
-
-  const XIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <line x1="18" y1="6" x2="6" y2="18"></line>
-      <line x1="6" y1="6" x2="18" y2="18"></line>
-    </svg>
-  );
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black text-white">
-      {/* Navbar */}
-      <nav className="fixed top-0 w-full bg-black/90 backdrop-blur-sm border-b border-red-900/30 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-red-500 glow-text">
-                The Obsidian Circle
-              </h1>
-            </div>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8">
-              <a href="#dashboard" className="hover:text-red-500 transition-colors">Dashboard</a>
-              <a href="#tasks" className="hover:text-red-500 transition-colors">Tasks</a>
-              <a href="#winners" className="hover:text-red-500 transition-colors">Winners</a>
-              <a href="#starkconnect" className="hover:text-red-500 transition-colors">StarkConnect</a>
-            </div>
-
-            {/* Right Side Icons */}
-            <div className="flex items-center space-x-4">
-              <button 
-                onClick={() => window.location.href = '/login'}
-                className="hidden md:block px-4 py-2 text-white hover:text-red-400 transition-colors"
-              >
-                Login
-              </button>
-              <button 
-                onClick={() => window.location.href = '/signup'}
-                className="hidden md:block px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-all transform hover:scale-105 glow-button"
-              >
-                Sign Up
-              </button>
-              <button 
-                className="md:hidden p-2 hover:bg-red-900/20 rounded-full transition-colors"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              >
-                {mobileMenuOpen ? <XIcon /> : <MenuIcon />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-black/95 border-t border-red-900/30">
-            <div className="px-4 py-4 space-y-3">
-              <a href="#dashboard" className="block hover:text-red-500 transition-colors">Dashboard</a>
-              <a href="#tasks" className="block hover:text-red-500 transition-colors">Tasks</a>
-              <a href="#winners" className="block hover:text-red-500 transition-colors">Winners</a>
-              <a href="#starkconnect" className="block hover:text-red-500 transition-colors">StarkConnect</a>
-              <div className="pt-3 border-t border-red-900/30 space-y-2">
-                <button 
-                  onClick={() => window.location.href = '/login'}
-                  className="block w-full text-left hover:text-red-500 transition-colors"
-                >
-                  Login
-                </button>
-                <button 
-                  onClick={() => window.location.href = '/signup'}
-                  className="block w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-semibold transition-all text-center"
-                >
-                  Sign Up
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </nav>
+    <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black text-white font-sans">
+      
+      <Navbar isDashboard={false} />
 
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-4">
         <div className="max-w-7xl mx-auto text-center">
-          <h2 className="text-5xl md:text-7xl font-bold mb-6 glow-text-large">
+          <h2 className="text-5xl md:text-7xl font-bold mb-6 glow-text-large font-creepster tracking-wider">
             Enter the Upside Down
           </h2>
-          <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
+          <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto font-light">
             A Stranger Things themed hackathon where mentors guide students through mysterious challenges in collaborative task work
           </p>
-          <button className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all transform hover:scale-105 glow-button">
-            Join the Circle
+          <button 
+            onClick={() => user ? navigate('/dashboard') : navigate('/signup')}
+            className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all transform hover:scale-105 glow-button uppercase tracking-widest"
+          >
+            {user ? 'Go to Dashboard' : 'Join the Circle'}
           </button>
         </div>
       </section>
@@ -180,10 +90,10 @@ const Homepage = () => {
       {/* Sliding Images Section */}
       <section className="py-16 px-4">
         <div className="max-w-6xl mx-auto">
-          <h3 className="text-4xl font-bold text-center mb-12 glow-text">
+          <h3 className="text-4xl font-bold text-center mb-12 glow-text font-creepster tracking-wide">
             We Drop Jaws!
           </h3>
-          <div className="relative h-96 rounded-lg overflow-hidden shadow-2xl">
+          <div className="relative h-96 rounded-lg overflow-hidden shadow-2xl border border-red-900/30">
             {slidingImages.map((img, index) => (
               <div
                 key={index}
@@ -196,19 +106,17 @@ const Homepage = () => {
                   alt={`Slide ${index + 1}`}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
               </div>
             ))}
-            <div className="absolute bottom-8 left-8 z-10">
+            <div className="absolute bottom-8 left-8 z-10 hidden sm:block">
               <div className="space-y-4">
-                <div className="bg-teal-400 text-black px-6 py-3 rounded-full inline-block font-bold text-lg">
+                <div className="bg-red-900/80 backdrop-blur-sm border border-red-500/30 text-white px-6 py-3 rounded-r-lg font-bold text-lg glow-box border-l-4 border-l-red-500">
                   950,000+ participants
                 </div>
-                <div className="bg-green-400 text-black px-6 py-3 rounded-full inline-block font-bold text-lg">
+                <br />
+                <div className="bg-gray-900/80 backdrop-blur-sm border border-gray-500/30 text-white px-6 py-3 rounded-r-lg font-bold text-lg glow-box border-l-4 border-l-gray-500">
                   100,000+ tasks completed
-                </div>
-                <div className="bg-blue-400 text-black px-6 py-3 rounded-full inline-block font-bold text-lg">
-                  1,500+ challenges solved
                 </div>
               </div>
             </div>
@@ -217,9 +125,9 @@ const Homepage = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4">
+      <section id="features" className="py-20 px-4">
         <div className="max-w-7xl mx-auto">
-          <h3 className="text-4xl font-bold text-center mb-16 glow-text">
+          <h3 className="text-4xl font-bold text-center mb-16 glow-text font-creepster tracking-wide">
             Basic Features
           </h3>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -236,10 +144,10 @@ const Homepage = () => {
             ].map((feature, index) => (
               <div 
                 key={index}
-                className="bg-gray-800/50 border border-red-900/30 rounded-lg p-6 hover:border-red-500/50 transition-all hover:shadow-lg hover:shadow-red-900/20"
+                className="bg-gray-900/40 border border-red-900/30 rounded-lg p-6 hover:border-red-500/50 transition-all hover:shadow-[0_0_20px_rgba(220,38,38,0.2)] group"
               >
-                <h4 className="text-xl font-bold text-red-400 mb-3">{feature.title}</h4>
-                <p className="text-gray-300">{feature.desc}</p>
+                <h4 className="text-xl font-bold text-red-500 mb-3 group-hover:text-red-400 transition-colors">{feature.title}</h4>
+                <p className="text-gray-400 leading-relaxed">{feature.desc}</p>
               </div>
             ))}
           </div>
@@ -247,9 +155,10 @@ const Homepage = () => {
       </section>
 
       {/* Advanced Features Section with Flip Cards */}
-      <section className="py-20 px-4 bg-gradient-to-b from-black to-gray-900">
-        <div className="max-w-7xl mx-auto">
-          <h3 className="text-4xl font-bold text-center mb-16 glow-text">
+      <section className="py-20 px-4 relative overflow-hidden">
+         <div className="absolute inset-0 bg-red-900/5 pointer-events-none"></div>
+        <div className="max-w-7xl mx-auto relative z-10">
+          <h3 className="text-4xl font-bold text-center mb-16 glow-text font-creepster tracking-wide">
             Advanced Features
           </h3>
           <div className="grid md:grid-cols-2 gap-8">
@@ -257,34 +166,34 @@ const Homepage = () => {
               { 
                 title: "AI Auto-Review Draft", 
                 desc: "An LLM reads reports or PR descriptions and drafts rubric scores and feedback for mentors to accept or modify",
-                icon: "🤖"
+                icon: "､"
               },
               { 
                 title: "AI Originality & Similarity Detection", 
                 desc: "Flag duplicates/copies across all platform entries and public repos to ensure consistent, high-quality contributions",
-                icon: "🔍"
+                icon: "剥"
               },
               { 
-                title: "Exportable Referral Packet (Signed PDF)", 
+                title: "Exportable Referral Packet", 
                 desc: "Generate a secure PDF with mentor recommendation, signed token, submission links, scores, and an audit trail for recruiters",
-                icon: "📄"
+                icon: "塘"
               },
               { 
-                title: "Lightweight Contribution Analytics", 
+                title: "Contribution Analytics", 
                 desc: "Dashboards showing trends per student/team with highlighting notable contributors",
-                icon: "📊"
+                icon: "投"
               }
             ].map((feature, index) => (
-              <div key={index} className="flip-card h-80">
-                <div className="flip-card-inner">
+              <div key={index} className="flip-card h-80 group cursor-pointer">
+                <div className="flip-card-inner relative w-full h-full transition-transform duration-700 transform-style-3d group-hover:rotate-y-180">
                   {/* Front */}
-                  <div className="flip-card-front bg-gradient-to-br from-red-900/40 to-gray-800/50 border border-red-900/50 rounded-lg p-8 flex flex-col items-center justify-center text-center">
-                    <div className="text-6xl mb-4">{feature.icon}</div>
-                    <h4 className="text-2xl font-bold text-red-400">{feature.title}</h4>
+                  <div className="flip-card-front absolute w-full h-full backface-hidden bg-gradient-to-br from-gray-900 to-black border border-red-900/30 rounded-xl p-8 flex flex-col items-center justify-center text-center shadow-xl">
+                    <div className="text-6xl mb-6 text-red-500">{feature.icon}</div>
+                    <h4 className="text-2xl font-bold text-white group-hover:text-red-400 transition-colors">{feature.title}</h4>
                   </div>
                   {/* Back */}
-                  <div className="flip-card-back bg-gradient-to-br from-red-600/30 to-gray-900/70 border border-red-500/50 rounded-lg p-8 flex items-center justify-center">
-                    <p className="text-gray-100 text-lg leading-relaxed">{feature.desc}</p>
+                  <div className="flip-card-back absolute w-full h-full backface-hidden bg-red-900/90 border border-red-500 rounded-xl p-8 flex items-center justify-center rotate-y-180 text-white shadow-[0_0_30px_rgba(220,38,38,0.4)]">
+                    <p className="text-lg leading-relaxed font-medium">{feature.desc}</p>
                   </div>
                 </div>
               </div>
@@ -294,9 +203,9 @@ const Homepage = () => {
       </section>
 
       {/* Connect with Mentors Section */}
-      <section className="py-20 px-4">
+      <section id="mentors" className="py-20 px-4">
         <div className="max-w-7xl mx-auto">
-          <h3 className="text-4xl font-bold text-center mb-4 glow-text">
+          <h3 className="text-4xl font-bold text-center mb-4 glow-text font-creepster tracking-wide">
             Connect with Our Mentors
           </h3>
           <p className="text-center text-gray-400 mb-12 text-lg">
@@ -307,38 +216,39 @@ const Homepage = () => {
             {mentors.map((mentor, index) => (
               <div
                 key={index}
-                className={`absolute inset-0 transition-all duration-700 ${
+                className={`absolute inset-0 transition-all duration-700 ease-in-out ${
                   index === currentMentorIndex 
                     ? 'opacity-100 translate-x-0' 
                     : 'opacity-0 translate-x-full'
                 }`}
               >
-                <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 border border-red-900/30 rounded-2xl p-8 h-full flex items-center backdrop-blur-sm hover:border-red-500/50 transition-all">
-                  <div className="flex flex-col md:flex-row items-center gap-8 w-full">
+                <div className="bg-gradient-to-r from-gray-900 to-black border border-red-900/30 rounded-2xl p-8 h-full flex items-center shadow-2xl">
+                  <div className="flex flex-col md:flex-row items-center gap-10 w-full px-6">
                     {/* Mentor Image */}
-                    <div className="relative">
-                      <div className="w-48 h-48 rounded-full overflow-hidden border-4 border-red-500/50 shadow-xl shadow-red-900/50">
+                    <div className="relative shrink-0">
+                      <div className="w-48 h-48 rounded-full overflow-hidden border-4 border-red-600 shadow-[0_0_20px_rgba(220,38,38,0.4)]">
                         <img 
                           src={mentor.image} 
                           alt={mentor.name}
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <div className="absolute -bottom-2 -right-2 bg-red-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
+                      <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-1 rounded-full text-sm font-bold shadow-lg uppercase tracking-wider whitespace-nowrap">
                         {mentor.company}
                       </div>
                     </div>
                     
                     {/* Mentor Details */}
                     <div className="flex-1 text-center md:text-left">
-                      <h4 className="text-3xl font-bold text-white mb-2 glow-text">
+                      <h4 className="text-4xl font-bold text-white mb-2 font-creepster tracking-wider text-red-500">
                         {mentor.name}
                       </h4>
-                      <p className="text-xl text-red-400 mb-4">{mentor.role}</p>
-                      <p className="text-gray-300 text-lg mb-6">
-                        <span className="text-red-500 font-semibold">Expertise:</span> {mentor.expertise}
+                      <p className="text-xl text-gray-300 mb-4 font-light">{mentor.role}</p>
+                      <p className="text-gray-400 text-lg mb-8">
+                        <span className="text-red-500 font-bold uppercase text-xs tracking-widest mr-2">Expertise:</span> 
+                        {mentor.expertise}
                       </p>
-                      <button className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 glow-button">
+                      <button className="bg-transparent border border-red-600 text-red-500 hover:bg-red-600 hover:text-white px-6 py-2 rounded-full font-semibold transition-all transform hover:scale-105">
                         Connect Now
                       </button>
                     </div>
@@ -354,10 +264,10 @@ const Homepage = () => {
               <button
                 key={index}
                 onClick={() => setCurrentMentorIndex(index)}
-                className={`w-3 h-3 rounded-full transition-all ${
+                className={`h-2 rounded-full transition-all duration-300 ${
                   index === currentMentorIndex 
-                    ? 'bg-red-500 w-8' 
-                    : 'bg-gray-600 hover:bg-gray-500'
+                    ? 'bg-red-600 w-8' 
+                    : 'bg-gray-700 w-2 hover:bg-gray-500'
                 }`}
               />
             ))}
@@ -366,21 +276,21 @@ const Homepage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4">
+      <section className="py-20 px-4 bg-gradient-to-t from-red-900/10 to-transparent">
         <div className="max-w-4xl mx-auto text-center">
-          <h3 className="text-4xl md:text-5xl font-bold mb-6 glow-text">
-            Redefining Mentorship Through Collaborative Challenges
+          <h3 className="text-4xl md:text-5xl font-bold mb-6 glow-text font-creepster tracking-wide">
+            Redefining Mentorship
           </h3>
-          <p className="text-xl text-gray-300 mb-8">
-            Join The Obsidian Circle and unlock your potential through guided task work, peer collaboration, and real-world experience
+          <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
+            Join The Obsidian Circle and unlock your potential through guided task work, peer collaboration, and real-world experience.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <input 
               type="email" 
-              placeholder="Your email"
-              className="px-6 py-3 rounded-lg bg-gray-800 border border-red-900/30 focus:border-red-500 focus:outline-none text-white"
+              placeholder="Enter your email"
+              className="px-6 py-3 w-full sm:w-80 rounded-lg bg-black border border-red-900/50 focus:border-red-500 focus:outline-none text-white focus:ring-1 focus:ring-red-500 transition-all"
             />
-            <button className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 glow-button">
+            <button className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-bold uppercase tracking-wider transition-all transform hover:scale-105 glow-button">
               Get Started
             </button>
           </div>
@@ -388,81 +298,26 @@ const Homepage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-black border-t border-red-900/30 py-8 px-4">
-        <div className="max-w-7xl mx-auto text-center text-gray-400">
-          <p>© 2024 The Obsidian Circle. All rights reserved.</p>
+      <footer id="about" className="bg-black border-t border-red-900/30 py-10 px-4">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 text-gray-500 text-sm">
+          <p>ﾂｩ 2024 The Obsidian Circle. All rights reserved.</p>
+          <div className="flex gap-6">
+            <a href="#" className="hover:text-red-500 transition-colors">Privacy Policy</a>
+            <a href="#" className="hover:text-red-500 transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-red-500 transition-colors">Contact</a>
+          </div>
         </div>
       </footer>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Creepster&display=swap');
-        
-        body {
-          font-family: 'Inter', sans-serif;
+        .rotate-y-180 {
+          transform: rotateY(180deg);
         }
-        
-        .glow-text {
-          text-shadow: 0 0 10px rgba(239, 68, 68, 0.5),
-                       0 0 20px rgba(239, 68, 68, 0.3),
-                       0 0 30px rgba(239, 68, 68, 0.2);
-        }
-        
-        .glow-text-large {
-          text-shadow: 0 0 20px rgba(239, 68, 68, 0.6),
-                       0 0 40px rgba(239, 68, 68, 0.4),
-                       0 0 60px rgba(239, 68, 68, 0.3);
-          animation: pulse 2s ease-in-out infinite;
-        }
-        
-        .glow-button {
-          box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
-        }
-        
-        .glow-button:hover {
-          box-shadow: 0 0 30px rgba(239, 68, 68, 0.8);
-        }
-        
-        @keyframes pulse {
-          0%, 100% {
-            text-shadow: 0 0 20px rgba(239, 68, 68, 0.6),
-                         0 0 40px rgba(239, 68, 68, 0.4),
-                         0 0 60px rgba(239, 68, 68, 0.3);
-          }
-          50% {
-            text-shadow: 0 0 25px rgba(239, 68, 68, 0.8),
-                         0 0 50px rgba(239, 68, 68, 0.6),
-                         0 0 75px rgba(239, 68, 68, 0.4);
-          }
-        }
-
-        /* Flip Card Styles */
-        .flip-card {
-          perspective: 1000px;
-        }
-        
-        .flip-card-inner {
-          position: relative;
-          width: 100%;
-          height: 100%;
-          text-align: center;
-          transition: transform 0.8s;
+        .transform-style-3d {
           transform-style: preserve-3d;
         }
-        
-        .flip-card:hover .flip-card-inner {
-          transform: rotateY(180deg);
-        }
-        
-        .flip-card-front, .flip-card-back {
-          position: absolute;
-          width: 100%;
-          height: 100%;
+        .backface-hidden {
           backface-visibility: hidden;
-          -webkit-backface-visibility: hidden;
-        }
-        
-        .flip-card-back {
-          transform: rotateY(180deg);
         }
       `}</style>
     </div>
