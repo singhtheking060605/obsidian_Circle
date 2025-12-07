@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 // These models manage Assign/Review Teams and Lightweight Contribution Analytics (from the first query).import mongoose from "mongoose";
 
 const teamProgressSchema = new mongoose.Schema({

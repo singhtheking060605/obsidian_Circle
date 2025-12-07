@@ -18,19 +18,24 @@ const AdminTaskPage = () => {
     rubric: ''
   });
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/v1';
+  // FIX: Default API URL adjusted to match backend (removed /v1)
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
   // --- FETCH DATA ---
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Fetch Tasks
+      // FIX: URL path updated
       const tasksRes = await axios.get(`${API_URL}/task/all`, { withCredentials: true });
       if (tasksRes.data.success) setTasks(tasksRes.data.tasks);
 
-      // Fetch Rubrics for the dropdown
-      const rubricsRes = await axios.get(`${API_URL}/rubric/all`, { withCredentials: true });
-      if (rubricsRes.data.success) setRubrics(rubricsRes.data.rubrics);
+      // Fetch Rubrics (only if the route exists)
+      try {
+        const rubricsRes = await axios.get(`${API_URL}/rubric/all`, { withCredentials: true });
+        if (rubricsRes.data.success) setRubrics(rubricsRes.data.rubrics);
+      } catch (err) {
+        console.warn("Rubric fetch failed - route might be missing", err);
+      }
 
     } catch (error) {
       console.error("Error fetching data", error);
@@ -78,7 +83,8 @@ const AdminTaskPage = () => {
   };
 
   return (
-    <div className="p-8 min-h-screen bg-black text-gray-200 w-full ml-64 font-sans animate-fade-in">
+    // FIX: Removed 'ml-64' and 'w-full' to prevent layout leak
+    <div className="p-8 text-gray-200 font-sans animate-fade-in">
       
       {/* HEADER */}
       <div className="flex justify-between items-center mb-8 border-b border-red-900/30 pb-4">

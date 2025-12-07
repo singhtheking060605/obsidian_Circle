@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 // These models handle the Post Tasks & Rubrics and Task Moderation features.import mongoose from "mongoose";
 
 const taskSchema = new mongoose.Schema({

@@ -431,7 +431,7 @@ const TeamManagement = () => {
     const [formData, setFormData] = useState({ repoLink: '', description: '' });
 
     // ACCESS ENVIRONMENT VARIABLES FOR VITE
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/team';
+    const API_URL = (import.meta.env.VITE_API_URL + "/team") || 'http://localhost:4000/api/team';
     const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME; 
     const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET; 
 

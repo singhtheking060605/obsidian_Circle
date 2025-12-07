@@ -44,6 +44,8 @@ import { connectDatabase } from "./config/database.js";
 import userRoutes from "./routes/userRoutes.js";
 
 import teamRoutes from "./routes/teamRoutes.js";
+import taskRoutes from "./routes/taskRoutes.js"; //     // <--- ADD THIS
+import rubricRoutes from "./routes/rubricRoutes.js"; // <--- ADD THIS
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,6 +81,8 @@ app.use(cors({
 // Routes
 app.use("/api/auth", userRoutes);
 app.use("/api/team", teamRoutes);
+app.use("/api/task", taskRoutes); // <--- REGISTER THIS ROUTE
+
 
 app.get("/", (req, res) => {
   res.json({ 

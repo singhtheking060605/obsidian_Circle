@@ -52,8 +52,18 @@ const LoginPage = () => {
       }
 
       alert('Login successful!');
-      // Redirect to dashboard
-      window.location.href = '/dashboard';
+
+      // --- RBAC REDIRECTION LOGIC START ---
+      const userRoles = data.user?.roles || [];
+      
+      // Check if user has high-level privileges
+      if (userRoles.some(role => ['Mentor', 'Admin', 'Alumni'].includes(role))) {
+        window.location.href = '/mentor/dashboard';
+      } else {
+        window.location.href = '/dashboard';
+      }
+      // --- RBAC REDIRECTION LOGIC END ---
+
     } catch (err) {
       console.error('❌ Login error:', err);
       setError(err.message || 'Login failed. Please try again.');

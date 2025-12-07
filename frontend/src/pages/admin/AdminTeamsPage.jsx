@@ -12,7 +12,7 @@ const AdminTeamsPage = () => {
   const [selectedTeam, setSelectedTeam] = useState('');
   const [selectedTask, setSelectedTask] = useState('');
 
-  // ENV Config
+  // FIX: Default API URL adjusted to match backend (removed /v1)
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
   // --- DATA FETCHING ---
@@ -23,12 +23,12 @@ const AdminTeamsPage = () => {
       const teamsRes = await axios.get(`${API_URL}/team/all`, { withCredentials: true });
       if (teamsRes.data.success) setTeams(teamsRes.data.teams);
 
-      // 2. Fetch All Tasks (Missions)
-      const tasksRes = await axios.get(`${API_URL}/v1/task/all`, { withCredentials: true });
+      // 2. Fetch All Tasks (Missions) - FIX: URL path updated
+      const tasksRes = await axios.get(`${API_URL}/task/all`, { withCredentials: true });
       if (tasksRes.data.success) setTasks(tasksRes.data.tasks);
 
-      // 3. Fetch Current Assignments
-      const assignRes = await axios.get(`${API_URL}/v1/task/assignments/all`, { withCredentials: true });
+      // 3. Fetch Current Assignments - FIX: URL path updated
+      const assignRes = await axios.get(`${API_URL}/task/assignments/all`, { withCredentials: true });
       if (assignRes.data.success) setAssignments(assignRes.data.assignments);
 
     } catch (error) {
@@ -51,7 +51,8 @@ const AdminTeamsPage = () => {
     }
 
     try {
-        const { data } = await axios.post(`${API_URL}/v1/task/assign`, {
+        // FIX: URL path updated
+        const { data } = await axios.post(`${API_URL}/task/assign`, {
             teamId: selectedTeam,
             taskId: selectedTask
         }, { withCredentials: true });
@@ -79,14 +80,16 @@ const AdminTeamsPage = () => {
 
   if (loading) {
     return (
-        <div className="p-8 min-h-screen bg-black w-full ml-64 flex items-center justify-center">
+        // FIX: Removed 'ml-64'
+        <div className="p-8 min-h-screen flex items-center justify-center">
             <div className="text-red-600 font-creepster text-3xl animate-pulse">Accessing Hawkins Lab Records...</div>
         </div>
     );
   }
 
   return (
-    <div className="p-8 min-h-screen bg-black text-gray-200 w-full ml-64 font-sans animate-fade-in">
+    // FIX: Removed 'ml-64', 'w-full', and 'bg-black' (bg is handled by layout)
+    <div className="p-8 text-gray-200 font-sans animate-fade-in">
       
       {/* HEADER */}
       <div className="flex justify-between items-center mb-8 border-b border-red-900/30 pb-4">

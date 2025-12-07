@@ -55,7 +55,7 @@ const Navbar = ({ onToggleSidebar, isDashboard = false }) => {
               <>
                 {!isDashboard && (
                   <Link 
-                    to="/dashboard" 
+                    to={user.roles && (user.roles.includes('Student') || user.roles.includes('Alumni')) ? "/dashboard" : "/mentor/dashboard"}
                     className="hidden md:block text-red-400 hover:text-white font-medium transition-colors mr-2 text-sm tracking-wide"
                   >
                     ENTER PORTAL
