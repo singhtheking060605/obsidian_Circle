@@ -7,6 +7,8 @@ import { fileURLToPath } from "url";
 import { connectDatabase } from "./config/database.js";
 import userRoutes from "./routes/userRoutes.js";
 import teamRoutes from "./routes/teamRoutes.js";
+import taskRoutes from "./routes/taskRoutes.js"; //     // <--- ADD THIS
+import rubricRoutes from "./routes/rubricRoutes.js"; // <--- ADD THIS
 import invitationRoutes from "./routes/invitationRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -43,6 +45,8 @@ app.use(cors({
 // Routes
 app.use("/api/auth", userRoutes);
 app.use("/api/team", teamRoutes);
+app.use("/api/task", taskRoutes); // <--- REGISTER THIS ROUTE
+
 app.use("/api/invitation", invitationRoutes); // ✅ FIXED: Removed /v1
 
 app.get("/", (req, res) => {
