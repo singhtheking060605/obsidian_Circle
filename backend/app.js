@@ -46,6 +46,10 @@ import userRoutes from "./routes/userRoutes.js";
 import teamRoutes from "./routes/teamRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js"; //     // <--- ADD THIS
 import rubricRoutes from "./routes/rubricRoutes.js"; // <--- ADD THIS
+// ... existing imports
+import referralRoutes from "./routes/referralRoutes.js"; // <--- Add Import
+
+// ... inside app.use routes section
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -82,6 +86,7 @@ app.use(cors({
 app.use("/api/auth", userRoutes);
 app.use("/api/team", teamRoutes);
 app.use("/api/task", taskRoutes); // <--- REGISTER THIS ROUTE
+app.use("/api/referral", referralRoutes); // <--- Register Route
 
 
 app.get("/", (req, res) => {
