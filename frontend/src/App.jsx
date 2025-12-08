@@ -22,19 +22,29 @@ import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import AcceptInvitationPage from './pages/AcceptInvitationPage.jsx';
 
 // Student Components & Pages
-import PersonalDashboard from './components/PersonalDashboard.jsx'; // Now a page
-import TeamManagement from './components/TeamManagement.jsx'; // Now a page
-import MissionsPage from './pages/student/MissionsPage.jsx'; // New file
-import AlumniPage from './pages/student/AlumniPage.jsx'; // New file
+import PersonalDashboard from './components/PersonalDashboard.jsx'; 
+import TeamManagement from './components/TeamManagement.jsx'; 
+import MissionsPage from './pages/student/MissionsPage.jsx'; 
+import AlumniPage from './pages/student/AlumniPage.jsx'; 
 
 // Mentor Pages
 import MentorDashboard from './pages/admin/MentorDashboard.jsx';
 import AdminTaskPage from './pages/admin/AdminTaskPage.jsx';
 import AdminTeamsPage from './pages/admin/AdminTeamsPage.jsx';
 
+import QnAPage from './pages/QnAPage.jsx';
+
+import AdminEvaluate from './pages/admin/AdminEvaluate.jsx'; // <--- ADD THIS IMPORT
+
 // Components
 
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+
+// ... imports
+import AdminReferral from './pages/admin/AdminReferral.jsx'; // <--- Import
+
+// ... inside <Routes> under MENTOR ROUTES
+import AdminStudents from './pages/admin/AdminStudents.jsx';
 
 function App() {
   return (
@@ -73,7 +83,7 @@ function App() {
         <Route element={<DashboardLayout />}>
           
           {/* STUDENT ROUTES */}
-          <Route element={<ProtectedRoute allowedRoles={['Student', 'Mentor', 'Admin', 'Alumni']} />}>
+          <Route element={<ProtectedRoute allowedRoles={['Student']} />}>
             <Route path="/dashboard" element={
               <div className="p-4 md:p-8"><PersonalDashboard /></div>
             } />
@@ -82,6 +92,8 @@ function App() {
             } />
             <Route path="/missions" element={<MissionsPage />} />
             <Route path="/alumni" element={<AlumniPage />} />
+             {/* ... existing routes ... */}
+            <Route path="/qna" element={<QnAPage />} /> {/* ADD THIS LINE */}
           </Route>
 
           {/* MENTOR ROUTES */}
@@ -89,6 +101,13 @@ function App() {
             <Route path="/mentor/dashboard" element={<MentorDashboard />} />
             <Route path="/mentor/tasks" element={<AdminTaskPage />} />
             <Route path="/mentor/teams" element={<AdminTeamsPage />} />
+            <Route path="/mentor/qna" element={<QnAPage />} /> {/* ADD THIS LINE */}
+            <Route path="/mentor/evaluate" element={<AdminEvaluate />} /> {/* <--- ADD THIS ROUTE */}
+
+            <Route path="/mentor/referral" element={<AdminReferral />} /> {/* <--- Add Route */}
+            <Route path="/mentor/students" element={<AdminStudents />} />
+            <Route path="/mentor/alumni" element={<AlumniPage />} />
+
           </Route>
 
         </Route>

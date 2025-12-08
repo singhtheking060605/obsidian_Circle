@@ -91,6 +91,10 @@ import teamRoutes from "./routes/teamRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import rubricRoutes from "./routes/rubricRoutes.js";
 import invitationRoutes from "./routes/invitationRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js"; // <--- ADD THIS
+// ... existing imports
+import referralRoutes from "./routes/referralRoutes.js"; // <--- Add Import
+
 
 
 
@@ -136,19 +140,16 @@ app.use((req, res, next) => {
   next();
 });
 
+
 // Routes
-console.log('📋 Registering routes...');
 app.use("/api/auth", userRoutes);
-console.log('✅ Registered: /api/auth');
-
 app.use("/api/team", teamRoutes);
-console.log('✅ Registered: /api/team');
+app.use("/api/task", taskRoutes); // <--- REGISTER THIS ROUTE
+app.use("/api/referral", referralRoutes); // <--- Register Route
 
-app.use("/api/task", taskRoutes);
-console.log('✅ Registered: /api/task');
+app.use("/api/invitation", invitationRoutes); // ✅ FIXED: Removed /v1
+app.use("/api/chat", chatRoutes); // <--- Add this line
 
-app.use("/api/invitation", invitationRoutes);
-console.log('✅ Registered: /api/invitation');
 
 app.get("/", (req, res) => {
   res.json({ 

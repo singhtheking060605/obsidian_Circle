@@ -7,7 +7,8 @@ import {
     updateTask, 
     deleteTask,
     assignTeamToTask,
-    getAllAssignments
+    getAllAssignments,
+    evaluateSubmission // <--- ADDED THIS IMPORT
 } from "../controllers/taskController.js";
 
 const router = express.Router();
@@ -28,5 +29,12 @@ router
 // Assignment Routes
 router.route("/assign").post(isAuthenticated, authorizeRoles("Admin", "Alumni", "Mentor"), assignTeamToTask);
 router.route("/assignments/all").get(isAuthenticated, authorizeRoles("Admin", "Alumni", "Mentor"), getAllAssignments);
+
+// Evaluation Route (NEW)
+router.route("/evaluate/:id").put(
+    isAuthenticated, 
+    authorizeRoles("Admin", "Alumni", "Mentor"), 
+    evaluateSubmission
+);
 
 export default router;

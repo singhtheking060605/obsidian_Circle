@@ -7,6 +7,8 @@ import { sendEmail } from "../utils/sendEmail.js";
 import twilio from "twilio";
 import { sendToken } from "../utils/sendToken.js";
 import crypto from "crypto";
+import { OAuth2Client } from 'google-auth-library';
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
 
@@ -346,4 +348,106 @@ export const getUser = catchAsyncError(async (req, res, next) => {
     success: true,
     user,
   });
+});
+
+export const getAllStudents = catchAsyncError(async (req, res, next) => {
+  const students = await User.find({ roles: 'Student' })
+    .select('name email avatar isAlumnus createdAt')
+    .sort({ name: 1 });
+
+  // In a real app, you would aggregate TeamProgress scores here to determine rank.
+  // For MVP, we will send the list and let the frontend mock the 'score' or display 0.
+  
+  res.status(200).json({
+    success: true,
+    students
+  });
+});
+
+export const googleLogin = catchAsyncError(async (req, res, next) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return next(new ErrorHandler("Google Token is required", 400));
+  }
+
+  // 1. Verify Google Token
+  const ticket = await googleClient.verifyIdToken({
+    idToken: token,
+    audience: process.env.GOOGLE_CLIENT_ID,
+  });
+  
+  const { name, email, picture, sub: googleId } = ticket.getPayload();
+
+  // 2. Check if user exists
+  let user = await User.findOne({ email });
+
+  if (user) {
+    // If user exists but doesn't have googleId linked, link it now
+    if (!user.googleId) {
+      user.googleId = googleId;
+      // If user had an avatar and now has a google picture, you might update it here
+      await user.save();
+    }
+  } else {
+    // 3. Create new user if they don't exist
+    const randomPassword = crypto.randomBytes(20).toString('hex'); // Generate random password
+    
+    // We assume Google emails are verified
+    user = await User.create({
+      name,
+      email,
+      password: randomPassword, 
+      phone: "", // You might need to handle this if phone is required in your Schema
+      googleId,
+      accountVerified: true,
+      emailVerified: true,
+      status: 'Active',
+      roles: ['Student']
+    });
+  }
+
+  // 4. Send Token (Use your existing sendToken utility)
+  sendToken(user, 200, "Google Login Successful", res);
+});
+
+// --- NEW NETWORK & SEARCH FUNCTIONS ---
+
+// 1. Get Recommendations (Alumni/Mentors)
+export const getAllAlumni = catchAsyncError(async (req, res, next) => {
+  const alumni = await User.find({
+    $and: [
+      { _id: { $ne: req.user._id } }, // Exclude self
+      {
+        $or: [
+          { roles: "Mentor" },
+          { roles: "Alumni" },
+          { isAlumnus: true }
+        ]
+      }
+    ]
+  }).select("name email roles company roleTitle avatar");
+
+  res.status(200).json({ success: true, alumni });
+});
+
+// 2. Global Search (Find ANY student or mentor)
+export const searchUsers = catchAsyncError(async (req, res, next) => {
+  const { query } = req.query;
+  
+  if (!query) return res.status(200).json({ success: true, users: [] });
+
+  const users = await User.find({
+    $and: [
+      { _id: { $ne: req.user._id } }, // Exclude self
+      {
+        $or: [
+          { name: { $regex: query, $options: "i" } },
+          { email: { $regex: query, $options: "i" } }
+        ]
+      }
+    ]
+  }).select("name email roles company roleTitle avatar").limit(20);
+
+  res.status(200).json({ success: true, users });
 });

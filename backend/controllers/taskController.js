@@ -1,15 +1,9 @@
 import { catchAsyncError } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/error.js";
 import { Task } from "../models/TaskModel.js";
+import { TeamProgress } from "../models/TeamProgressModel.js"; 
 
-
-
-
-// @desc    Create a new Task (Mission)
-// @route   POST /api/v1/task/new
-// @access  Private (Admin, Alumni)
 export const createTask = catchAsyncError(async (req, res, next) => {
-  // Destructure all new fields from the request body
   const { 
     title, 
     description, 
@@ -31,10 +25,9 @@ export const createTask = catchAsyncError(async (req, res, next) => {
     description,
     deadline,
     assignedTo,
-    // Store arrays directly (frontend should send them as arrays)
     deliverables, 
     expectedSkills,
-    rubric: rubric || null, // Optional rubric
+    rubric: rubric || null,
     createdBy,
   });
 
@@ -45,11 +38,11 @@ export const createTask = catchAsyncError(async (req, res, next) => {
   });
 });
 
-// ... (Keep getAllTasks, getSingleTask, updateTask, deleteTask as they were) ...
-// Ensure updateTask also allows updating these new fields if passed in req.body
+// @desc    Get All Tasks (Visible to all Mentors)
 export const getAllTasks = catchAsyncError(async (req, res, next) => {
   const tasks = await Task.find()
-    .populate('rubric', 'title') // Populate rubric title for display
+    .populate('rubric', 'title')
+    .populate('createdBy', 'name') // Populate creator name for display
     .sort({ deadline: 1, createdAt: -1 });
 
   res.status(200).json({
@@ -59,6 +52,7 @@ export const getAllTasks = catchAsyncError(async (req, res, next) => {
   });
 });
 
+// @desc    Get Single Task
 export const getSingleTask = catchAsyncError(async (req, res, next) => {
   const task = await Task.findById(req.params.id).populate('rubric');
 
@@ -72,11 +66,17 @@ export const getSingleTask = catchAsyncError(async (req, res, next) => {
   });
 });
 
+// @desc    Update Task (Only Creator can update)
 export const updateTask = catchAsyncError(async (req, res, next) => {
   let task = await Task.findById(req.params.id);
 
   if (!task) {
     return next(new ErrorHandler("Task not found.", 404));
+  }
+
+  // Permission Check
+  if (task.createdBy.toString() !== req.user.id) {
+    return next(new ErrorHandler("You are not authorized to update this task.", 403));
   }
   
   task = await Task.findByIdAndUpdate(req.params.id, req.body, {
@@ -92,11 +92,17 @@ export const updateTask = catchAsyncError(async (req, res, next) => {
   });
 });
 
+// @desc    Delete Task (Only Creator can delete)
 export const deleteTask = catchAsyncError(async (req, res, next) => {
   const task = await Task.findById(req.params.id);
 
   if (!task) {
     return next(new ErrorHandler("Task not found.", 404));
+  }
+  
+  // --- NEW PERMISSION LOGIC ---
+  if (task.createdBy.toString() !== req.user.id) {
+    return next(new ErrorHandler("You can only delete missions you created.", 403));
   }
   
   await task.deleteOne();
@@ -106,8 +112,7 @@ export const deleteTask = catchAsyncError(async (req, res, next) => {
     message: "Task deleted successfully.",
   });
 });
-import { TeamProgress } from "../models/TeamProgressModel.js"; 
-// ... existing imports
+
 
 export const assignTeamToTask = catchAsyncError(async (req, res, next) => {
   const { teamId, taskId } = req.body;
@@ -116,7 +121,6 @@ export const assignTeamToTask = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Team ID and Task ID are required.", 400));
   }
 
-  // Check if assignment already exists
   const existingAssignment = await TeamProgress.findOne({ team: teamId, task: taskId });
   if (existingAssignment) {
     return next(new ErrorHandler("This squad is already assigned to this mission.", 400));
@@ -137,12 +141,37 @@ export const assignTeamToTask = catchAsyncError(async (req, res, next) => {
 
 export const getAllAssignments = catchAsyncError(async (req, res, next) => {
   const assignments = await TeamProgress.find()
-    .populate("team", "name leader repoLink") // Get team details
-    .populate("task", "title deadline")       // Get task details
+    .populate("team", "name leader repoLink")
+    .populate("task", "title deadline")
     .sort({ assignedAt: -1 });
 
   res.status(200).json({
     success: true,
     assignments
+  });
+});
+
+export const evaluateSubmission = catchAsyncError(async (req, res, next) => {
+  const { score, feedback, status } = req.body;
+  const progressId = req.params.id;
+
+  let assignment = await TeamProgress.findById(progressId);
+
+  if (!assignment) {
+    return next(new ErrorHandler("Submission record not found.", 404));
+  }
+
+  if (score !== undefined) assignment.score = score;
+  if (feedback !== undefined) assignment.feedback = feedback;
+  if (status !== undefined) assignment.status = status;
+  
+  assignment.lastUpdated = Date.now();
+
+  await assignment.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Evaluation submitted successfully.",
+    assignment
   });
 });

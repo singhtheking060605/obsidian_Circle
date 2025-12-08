@@ -1484,10 +1484,12 @@
 
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import InvitationModal from './InvitationModal';
 
 const TeamManagement = () => {
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [teamData, setTeamData] = useState(null);
     const [editMode, setEditMode] = useState(false);
@@ -1882,12 +1884,28 @@ const TeamManagement = () => {
                             <h2 className="text-4xl font-bold text-white glow-text font-creepster tracking-wider break-words">
                                 {teamData.name}
                             </h2>
-                            <button 
-                                onClick={toggleEditMode}
-                                className="text-xs border border-red-900/50 text-red-400 px-3 py-1 rounded hover:bg-red-900/20 transition-colors shrink-0 ml-4"
-                            >
-                                {editMode ? 'Cancel' : 'Edit Details'}
-                            </button>
+
+                            
+                            <div className="flex items-center gap-3">
+                                {/* Existing Edit Button */}
+                                <button 
+                                    onClick={toggleEditMode}
+                                    className="text-xs border border-red-900/50 text-red-400 px-3 py-1 rounded hover:bg-red-900/20 transition-colors shrink-0"
+                                >
+                                    {editMode ? 'Cancel' : 'Edit Details'}
+                                </button>
+
+                                {/* NEW BUTTON: Talk with Mentor */}
+                                <button 
+                                    onClick={() => navigate('/qna')}
+                                    className="text-xs bg-red-600 hover:bg-red-700 text-white px-4 py-1 rounded transition-colors shrink-0 flex items-center gap-2 shadow-[0_0_10px_rgba(220,38,38,0.4)]"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                    Talk with Mentor
+                                </button>
+                            </div>
                         </div>
 
                         <label className="text-xs text-red-500 uppercase tracking-widest font-bold mb-2 block">GitHub Repository</label>

@@ -2,36 +2,73 @@ import "./config/env.js";
 import dotenv from "dotenv";
 import { app } from "./app.js";
 import { connectDatabase } from "./config/database.js";
+import http from "http";
+import { Server } from "socket.io";
+import { Message } from "./models/MessageModel.js"; 
 
-// Load from config.env in current directory
 dotenv.config({ path: './config.env' });
 
-
-// console.log(' Environment Loading Debug:');
-// console.log('Working Directory:', process.cwd());
-// console.log('Available env vars:', Object.keys(process.env).filter(k => 
-//   k.includes('MONGO') || k.includes('PORT')
-// ));
-
-// Check for MONGO_URI
-const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
-// if (!mongoUri) {
-//   console.error('\n ERROR: MONGO_URI or MONGODB_URI not found!');
-//   console.error('Please check:');
-//   console.error('1. .env or config.env file exists in project root');
-//   console.error('2. File contains: MONGO_URI=your_mongodb_connection_string');
-//   console.error('3. No extra spaces or quotes around the value\n');
-//   process.exit(1);
-// }
-
-
-// console.log(' URI prefix:', mongoUri.substring(0, 25) + '...\n');
-
-// Connect to database AFTER env vars are loaded
 connectDatabase();
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    methods: ["GET", "POST", "PUT"],
+    credentials: true,
+  },
+});
+
+io.on("connection", (socket) => {
+  console.log(`User Connected: ${socket.id}`);
+
+  // 1. SETUP: User joins their own room (Essential for notifications)
+  socket.on("setup", (userId) => {
+    socket.join(userId); 
+    console.log(`User ${userId} joined their personal room`);
+  });
+
+  // 2. CHAT: Join specific chat session
+  socket.on("join_room", (sessionId) => {
+    socket.join(sessionId);
+  });
+
+  // 3. CHAT: Send Message
+  socket.on("send_message", async (data) => {
+    try {
+      await Message.create({
+        session: data.sessionId,
+        sender: data.senderId,
+        content: data.content
+      });
+      // Broadcast to everyone in the chat room
+      io.in(data.sessionId).emit("receive_message", data);
+    } catch (err) {
+      console.error("Message save error:", err);
+    }
+  });
+
+  // 4. NEW REQUEST: Notify Receiver
+  socket.on("send_request", (data) => {
+    // data = { receiverId, senderName, ... }
+    io.in(data.receiverId).emit("request_received", data);
+  });
+
+  // 5. ACCEPT REQUEST: Notify Sender (NEW FIX)
+  socket.on("accept_request", (data) => {
+    // data = { senderId, session }
+    // Notify the person who sent the request that it's accepted
+    io.in(data.senderId).emit("request_accepted", data);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User Disconnected", socket.id);
+  });
+});
+
+server.listen(PORT, () => {
   console.log(` Server running on port ${PORT}`);
 });
