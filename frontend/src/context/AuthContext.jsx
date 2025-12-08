@@ -6,12 +6,13 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const api = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
   // Check if user is logged in on page load
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const { data } = await axios.get('http://localhost:4000/api/auth/me', {
+        const { data } = await axios.get(`${api}/auth/me`, {
             withCredentials: true 
         });
         
@@ -31,7 +32,7 @@ export const AuthProvider = ({ children }) => {
   // Logout function
   const logout = async () => {
     try {
-      await axios.get('http://localhost:4000/api/auth/logout', { withCredentials: true });
+      await axios.get(`${api}/auth/logout`, { withCredentials: true });
       setUser(null);
       window.location.href = '/login'; // Force reload/redirect
     } catch (error) {

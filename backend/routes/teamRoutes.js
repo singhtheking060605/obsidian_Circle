@@ -15,7 +15,6 @@ import {
 } from '../controllers/teamController.js';
 // import { isAuthenticated } from '../middlewares/auth.js';
 
-import express from "express";
 // import { getMyTeam, createTeam, updateTeam, joinTeam, generateContent } from "../controllers/teamController.js";
 import { isAuthenticated, authorizeRoles } from "../middlewares/auth.js"; // Ensure authorizeRoles is imported
 

@@ -27,6 +27,7 @@ import AlumniPage from './pages/student/AlumniPage.jsx'; // New file
 import MentorDashboard from './pages/admin/MentorDashboard.jsx';
 import AdminTaskPage from './pages/admin/AdminTaskPage.jsx';
 import AdminTeamsPage from './pages/admin/AdminTeamsPage.jsx';
+import QnAPage from './pages/QnAPage.jsx';
 
 // Components
 
@@ -50,7 +51,7 @@ function App() {
         <Route element={<DashboardLayout />}>
           
           {/* STUDENT ROUTES */}
-          <Route element={<ProtectedRoute allowedRoles={['Student', 'Mentor', 'Admin', 'Alumni']} />}>
+          <Route element={<ProtectedRoute allowedRoles={['Student']} />}>
             <Route path="/dashboard" element={
               <div className="p-4 md:p-8"><PersonalDashboard /></div>
             } />
@@ -59,6 +60,8 @@ function App() {
             } />
             <Route path="/missions" element={<MissionsPage />} />
             <Route path="/alumni" element={<AlumniPage />} />
+             {/* ... existing routes ... */}
+            <Route path="/qna" element={<QnAPage />} /> {/* ADD THIS LINE */}
           </Route>
 
           {/* MENTOR ROUTES */}
@@ -66,6 +69,7 @@ function App() {
             <Route path="/mentor/dashboard" element={<MentorDashboard />} />
             <Route path="/mentor/tasks" element={<AdminTaskPage />} />
             <Route path="/mentor/teams" element={<AdminTeamsPage />} />
+            <Route path="/mentor/qna" element={<QnAPage />} /> {/* ADD THIS LINE */}
           </Route>
 
         </Route>

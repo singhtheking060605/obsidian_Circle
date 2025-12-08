@@ -22,7 +22,7 @@ const ProtectedRoute = ({ allowedRoles }) => {
 
   // 2. Logged in but role not allowed -> Student Dashboard (or specialized 403 page)
   if (allowedRoles && !allowedRoles.some(role => user.roles.includes(role))) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // 3. Authorized
