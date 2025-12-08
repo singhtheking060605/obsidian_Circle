@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // 1. Import useNavigate
+import { useAuth } from '../context/AuthContext'; // 2. Import Auth Context
 
 const LoginPage = () => {
+  const navigate = useNavigate(); // 3. Initialize hook
+  const { setUser } = useAuth(); // 4. Get setUser from context
+
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -53,14 +58,19 @@ const LoginPage = () => {
 
       alert('Login successful!');
 
+      // 5. UPDATE AUTH STATE IMMEDIATELY
+      // This prevents the "refresh -> check auth -> fail -> redirect back" loop
+      setUser(data.user);
+
       // --- RBAC REDIRECTION LOGIC START ---
       const userRoles = data.user?.roles || [];
       
       // Check if user has high-level privileges
       if (userRoles.some(role => ['Mentor', 'Admin', 'Alumni'].includes(role))) {
-        window.location.href = '/mentor/dashboard';
+        // Use navigate instead of window.location.href for smoother transition
+        navigate('/mentor/dashboard');
       } else {
-        window.location.href = '/dashboard';
+        navigate('/dashboard');
       }
       // --- RBAC REDIRECTION LOGIC END ---
 
@@ -81,7 +91,6 @@ const LoginPage = () => {
       </div>
 
       <div className="relative w-full max-w-md">
-        {/* Logo/Title */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-red-500 mb-2 glow-text">
             The Obsidian Circle
@@ -89,7 +98,6 @@ const LoginPage = () => {
           <p className="text-gray-400">Enter the Upside Down</p>
         </div>
 
-        {/* Login Card */}
         <div className="bg-gray-900/50 backdrop-blur-sm border border-red-900/30 rounded-2xl p-8 shadow-2xl">
           <h2 className="text-3xl font-bold text-white mb-6 text-center glow-text">
             Welcome Back
@@ -102,7 +110,6 @@ const LoginPage = () => {
           )}
 
           <div className="space-y-6">
-            {/* Email Field */}
             <div>
               <label className="block text-gray-300 mb-2 font-medium">
                 Email Address
@@ -118,7 +125,6 @@ const LoginPage = () => {
               />
             </div>
 
-            {/* Password Field */}
             <div>
               <label className="block text-gray-300 mb-2 font-medium">
                 Password
@@ -134,14 +140,12 @@ const LoginPage = () => {
               />
             </div>
 
-            {/* Forgot Password Link */}
             <div className="text-right">
               <a href="/forgot-password" className="text-red-400 hover:text-red-300 text-sm transition-colors">
                 Forgot Password?
               </a>
             </div>
 
-            {/* Submit Button */}
             <button
               onClick={handleSubmit}
               disabled={loading}
@@ -151,7 +155,6 @@ const LoginPage = () => {
             </button>
           </div>
 
-          {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-red-900/30"></div>
@@ -163,18 +166,16 @@ const LoginPage = () => {
             </div>
           </div>
 
-          {/* Sign Up Link */}
           <button
-            onClick={() => window.location.href = '/signup'}
+            onClick={() => navigate('/signup')}
             className="w-full bg-gray-800/50 hover:bg-gray-800 border border-red-900/30 hover:border-red-500/50 text-white py-3 rounded-lg font-semibold transition-all"
           >
             Create Account
           </button>
 
-          {/* Back to Home */}
           <div className="mt-6 text-center">
             <button
-              onClick={() => window.location.href = '/'}
+              onClick={() => navigate('/')}
               className="text-gray-400 hover:text-red-400 text-sm transition-colors"
             >
               ← Back to Home
