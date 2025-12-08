@@ -57,12 +57,16 @@ const QnAPage = () => {
       }
     });
 
-    // Listener: Someone sent me a request
-    socket.on("request_received", () => {
-      fetchRequests(); // Refresh requests list
+    // Listener: Request Received
+    socket.on("request_received", (data) => {
+      // STRICT FILTER: Only refresh if it's NOT a generic connection request
+      // This prevents the QnA page from refreshing when someone just wants to 'Connect' (handled by AlumniPage)
+      if (data.topic !== 'Connection Request') {
+          fetchRequests();
+      }
     });
 
-    // Listener: Someone accepted my request
+    // Listener: Request Accepted
     socket.on("request_accepted", () => {
       fetchMyChats(); // Refresh active chats list
     });
@@ -108,6 +112,7 @@ const QnAPage = () => {
 
   const fetchRequests = async () => {
     try {
+      // Use the specific endpoint for incoming requests which excludes connection requests
       const { data } = await axios.get(`${API_URL}/chat/requests/incoming`, { withCredentials: true });
       if (data.success) setRequests(data.requests);
     } catch (err) { console.error(err); }
@@ -125,10 +130,11 @@ const QnAPage = () => {
         );
 
         if (data.success) {
-            // Notify Receiver via Socket
+            // PASS TOPIC TO SOCKET so receiver knows this is a MESSAGE request
             socket.emit("send_request", {
                 receiverId: selectedUser._id,
-                senderName: user.name
+                senderName: user.name,
+                topic: requestTopic 
             });
 
             alert(`Request sent to ${selectedUser.name}!`);
@@ -147,8 +153,7 @@ const QnAPage = () => {
     try {
       const { data } = await axios.put(`${API_URL}/chat/accept`, { sessionId }, { withCredentials: true });
       if (data.success) {
-        // Notify Sender via Socket (CRITICAL FIX)
-        // data.session should contain populate('sender') from the backend response
+        // Notify Sender via Socket
         if (data.session.sender) {
             socket.emit("accept_request", { 
                 senderId: data.session.sender._id 
@@ -252,7 +257,6 @@ const QnAPage = () => {
                         <div key={req._id} className="p-4 bg-gray-800/40 border border-gray-700 rounded-lg">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="text-sm font-bold text-white">{req.sender.name}</span>
-                                <span className="text-[10px] text-gray-500">{req.sender.roles?.join(', ')}</span>
                             </div>
                             <p className="text-xs text-gray-400 mb-3 bg-black/30 p-2 rounded">Topic: <span className="text-gray-300">{req.topic}</span></p>
                             <button onClick={() => handleAcceptRequest(req._id)} className="w-full bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 rounded transition-colors shadow-lg shadow-green-900/20">
