@@ -1,3 +1,4 @@
+// backend/models/TaskModel.js
 import mongoose from "mongoose";
 // These models handle the Post Tasks & Rubrics and Task Moderation features.import mongoose from "mongoose";
 
@@ -39,6 +40,12 @@ const taskSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
+  },
+  // ADDED: Mission status field to determine availability
+  status: {
+    type: String,
+    enum: ['draft', 'active', 'archived', 'completed'],
+    default: 'draft',
   },
   createdAt: {
     type: Date,

@@ -14,7 +14,7 @@ const ViewAllTasks = () => {
 
     const fetchAvailableTasks = async () => {
         try {
-            // FIX: Uses /api/team/available-tasks 
+            // Correct path, expecting successful retrieval from server
             const { data } = await axios.get('/api/team/available-tasks', {
                 withCredentials: true,
             });

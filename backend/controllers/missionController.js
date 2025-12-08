@@ -1,4 +1,6 @@
-import { Mission, MissionAcceptance } from '../models/Mission.js';
+// backend/controllers/missionController.js
+import { Task } from '../models/TaskModel.js'; // Use Task model
+import { MissionAcceptance } from '../models/MissionAcceptanceModel.js'; // New model import
 import { catchAsyncError } from '../middlewares/catchAsyncError.js';
 import ErrorHandler from '../middlewares/error.js';
 
@@ -6,84 +8,58 @@ import ErrorHandler from '../middlewares/error.js';
 // STUDENT CONTROLLERS
 // ============================================
 
-// @desc    Get all active missions that student can accept
+// @desc    Get all active missions that student can accept (UPDATED LOGIC)
 // @route   GET /api/missions/active
 // @access  Private (Student)
 export const getActiveMissions = catchAsyncError(async (req, res, next) => {
   const userId = req.user._id;
 
-  // Get all active missions
-  const allMissions = await Mission.find({ 
-    status: 'active',
-    deadline: { $gte: new Date() }
+  // 1. Find all missions the current user (student) has already accepted
+  const acceptedMissionIds = await MissionAcceptance.find({ 
+    student: userId 
+  }).distinct('mission');
+
+  // 2. Find all tasks not yet accepted by the user, that are explicitly 'active', and deadline has not passed.
+  const activeMissions = await Task.find({ 
+    _id: { $nin: acceptedMissionIds },
+    status: 'active', // <--- CRITICAL FILTER ADDED
+    deadline: { $gte: new Date() } 
   })
+  .select('-description -deliverables') 
   .populate('createdBy', 'name email')
   .sort({ createdAt: -1 });
 
-  // Get student's acceptances to check status
-  const acceptances = await MissionAcceptance.find({ 
-    student: userId 
-  }).select('mission adminApproval status');
-
-  // Create a map of mission statuses
-  const acceptanceMap = {};
-  acceptances.forEach(acc => {
-    acceptanceMap[acc.mission.toString()] = {
-      status: acc.status,
-      adminApproval: acc.adminApproval.status,
-      acceptanceId: acc._id
-    };
-  });
-
-  // Add acceptance status to missions
-  const missionsWithStatus = allMissions.map(mission => {
-    const missionObj = mission.toObject();
-    if (acceptanceMap[mission._id.toString()]) {
-      missionObj.acceptanceStatus = acceptanceMap[mission._id.toString()];
-    }
-    return missionObj;
-  });
-
   res.status(200).json({
     success: true,
-    count: missionsWithStatus.length,
-    missions: missionsWithStatus
+    count: activeMissions.length,
+    missions: activeMissions
   });
 });
 
-// @desc    Accept a mission with team details
+// @desc    Accept a mission (SIMPLIFIED LOGIC for individual acceptance)
 // @route   POST /api/missions/:missionId/accept
 // @access  Private (Student)
 export const acceptMission = catchAsyncError(async (req, res, next) => {
   const { missionId } = req.params;
-  const { teamName, githubRepository, teamMembers } = req.body;
   const userId = req.user._id;
 
-  // Validate required fields
-  if (!teamName) {
-    return next(new ErrorHandler('Team name is required', 400));
-  }
-
-  if (!teamMembers || !Array.isArray(teamMembers) || teamMembers.length < 2) {
-    return next(new ErrorHandler('At least 2 team members are required', 400));
-  }
-
-  // Check if mission exists and is active
-  const mission = await Mission.findById(missionId);
+  // 1. Check if mission exists
+  const mission = await Task.findById(missionId);
   if (!mission) {
     return next(new ErrorHandler('Mission not found', 404));
   }
-
+  
+  // New check: Mission must be active before acceptance
   if (mission.status !== 'active') {
-    return next(new ErrorHandler('This mission is not active', 400));
+    return next(new ErrorHandler('This mission is no longer active and cannot be accepted.', 400));
   }
 
-  // Check if deadline has passed
+  // 2. Check if deadline has passed
   if (new Date(mission.deadline) < new Date()) {
     return next(new ErrorHandler('Mission deadline has passed', 400));
   }
-
-  // Check if student already accepted this mission
+  
+  // 3. Check if student already accepted this mission
   const existingAcceptance = await MissionAcceptance.findOne({
     mission: missionId,
     student: userId
@@ -93,49 +69,20 @@ export const acceptMission = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler('You have already accepted this mission', 400));
   }
 
-  // Validate team size
-  const minTeamSize = mission.requirements?.minTeamSize || 2;
-  const maxTeamSize = mission.requirements?.maxTeamSize || 3;
-
-  if (teamMembers.length < minTeamSize) {
-    return next(new ErrorHandler(`Team must have at least ${minTeamSize} members`, 400));
-  }
-
-  if (teamMembers.length > maxTeamSize) {
-    return next(new ErrorHandler(`Team cannot exceed ${maxTeamSize} members`, 400));
-  }
-
-  // Validate each team member has required fields
-  for (let i = 0; i < teamMembers.length; i++) {
-    const member = teamMembers[i];
-    if (!member.name || !member.rollNumber || !member.branch || !member.githubId) {
-      return next(new ErrorHandler(`Team member ${i + 1} is missing required information`, 400));
-    }
-  }
-
-  // Create mission acceptance
+  // 4. Create mission acceptance document
   const acceptance = await MissionAcceptance.create({
     mission: missionId,
     student: userId,
-    teamName,
-    githubRepository: githubRepository || '',
-    teamMembers,
-    status: 'pending',
-    adminApproval: {
-      status: 'pending'
-    }
+    status: 'accepted',
   });
-
-  // Populate the mission details
-  await acceptance.populate('mission', 'title briefing level deadline expectedSkills');
-  await acceptance.populate('student', 'name email');
 
   res.status(201).json({
     success: true,
-    message: 'Mission accepted successfully! Waiting for admin approval.',
+    message: 'Mission accepted successfully!',
     acceptance
   });
 });
+
 
 // @desc    Get student's accepted missions (for "Manage Teams" section)
 // @route   GET /api/missions/my-missions
@@ -146,9 +93,9 @@ export const getMyMissions = catchAsyncError(async (req, res, next) => {
   const acceptances = await MissionAcceptance.find({ 
     student: userId 
   })
-  .populate('mission', 'title briefing description level deadline expectedSkills deliverables')
+  .populate('mission') // Populate the full task details
   .populate('student', 'name email')
-  .populate('adminApproval.approvedBy', 'name')
+  // .populate('adminApproval.approvedBy', 'name') // Removed: simplicity first
   .sort({ acceptedAt: -1 });
 
   res.status(200).json({
@@ -158,133 +105,25 @@ export const getMyMissions = catchAsyncError(async (req, res, next) => {
   });
 });
 
-// @desc    Update team details (before admin approval)
-// @route   PUT /api/missions/acceptance/:acceptanceId/team
-// @access  Private (Student)
+// --- STUBBED CONTROLLERS (Temporarily return error until fully implemented with new models) ---
+
 export const updateTeamDetails = catchAsyncError(async (req, res, next) => {
-  const { acceptanceId } = req.params;
-  const { teamName, githubRepository, teamMembers } = req.body;
-  const userId = req.user._id;
-
-  const acceptance = await MissionAcceptance.findById(acceptanceId)
-    .populate('mission');
-
-  if (!acceptance) {
-    return next(new ErrorHandler('Mission acceptance not found', 404));
-  }
-
-  // Check ownership
-  if (acceptance.student.toString() !== userId.toString()) {
-    return next(new ErrorHandler('Not authorized to update this team', 403));
-  }
-
-  // Don't allow updates if already approved
-  if (acceptance.adminApproval.status === 'approved') {
-    return next(new ErrorHandler('Cannot update team details after admin approval', 400));
-  }
-
-  // Validate team members if provided
-  if (teamMembers) {
-    const minTeamSize = acceptance.mission.requirements?.minTeamSize || 2;
-    const maxTeamSize = acceptance.mission.requirements?.maxTeamSize || 3;
-
-    if (teamMembers.length < minTeamSize || teamMembers.length > maxTeamSize) {
-      return next(new ErrorHandler(`Team must have ${minTeamSize}-${maxTeamSize} members`, 400));
-    }
-
-    acceptance.teamMembers = teamMembers;
-  }
-
-  // Update fields
-  if (teamName) acceptance.teamName = teamName;
-  if (githubRepository !== undefined) acceptance.githubRepository = githubRepository;
-
-  await acceptance.save();
-  await acceptance.populate('mission', 'title briefing level deadline');
-
-  res.status(200).json({
-    success: true,
-    message: 'Team details updated successfully',
-    acceptance
-  });
+  return next(new ErrorHandler('Feature temporarily disabled or requires re-implementation with new models.', 501));
 });
 
-// @desc    Submit mission for admin approval
-// @route   POST /api/missions/acceptance/:acceptanceId/submit-approval
-// @access  Private (Student)
 export const submitForApproval = catchAsyncError(async (req, res, next) => {
-  const { acceptanceId } = req.params;
-  const userId = req.user._id;
-
-  const acceptance = await MissionAcceptance.findById(acceptanceId)
-    .populate('mission', 'requirements');
-
-  if (!acceptance) {
-    return next(new ErrorHandler('Mission acceptance not found', 404));
-  }
-
-  // Check ownership
-  if (acceptance.student.toString() !== userId.toString()) {
-    return next(new ErrorHandler('Not authorized', 403));
-  }
-
-  // Check if already submitted or approved
-  if (acceptance.adminApproval.status === 'approved') {
-    return next(new ErrorHandler('This mission has already been approved', 400));
-  }
-
-  // Update to in-progress after admin approval
-  acceptance.status = 'pending'; // Stays pending until admin approves
-  await acceptance.save();
-
-  res.status(200).json({
-    success: true,
-    message: 'Mission is pending admin approval',
-    acceptance
-  });
+  return next(new ErrorHandler('Feature temporarily disabled or requires re-implementation with new models.', 501));
 });
 
-// @desc    Upload evidence/media for mission
-// @route   POST /api/missions/acceptance/:acceptanceId/upload
-// @access  Private (Student)
 export const uploadEvidence = catchAsyncError(async (req, res, next) => {
-  const { acceptanceId } = req.params;
-  const { evidenceUrl } = req.body;
-  const userId = req.user._id;
-
-  if (!evidenceUrl) {
-    return next(new ErrorHandler('Evidence URL is required', 400));
-  }
-
-  const acceptance = await MissionAcceptance.findById(acceptanceId);
-
-  if (!acceptance) {
-    return next(new ErrorHandler('Mission acceptance not found', 404));
-  }
-
-  // Check ownership
-  if (acceptance.student.toString() !== userId.toString()) {
-    return next(new ErrorHandler('Not authorized', 403));
-  }
-
-  // Can only upload if approved
-  if (acceptance.adminApproval.status !== 'approved') {
-    return next(new ErrorHandler('Can only upload evidence after admin approval', 400));
-  }
-
-  // Add evidence URL
-  acceptance.submission.evidence.push(evidenceUrl);
-  await acceptance.save();
-
-  res.status(200).json({
-    success: true,
-    message: 'Evidence uploaded successfully',
-    acceptance
-  });
+  return next(new ErrorHandler('Feature temporarily disabled or requires re-implementation with new models.', 501));
 });
+
+// ---------------------------------------------------------------------------------------------
+
 
 // ============================================
-// ADMIN/MENTOR CONTROLLERS
+// ADMIN/MENTOR CONTROLLERS (Updated to use correct Task/MissionAcceptance models)
 // ============================================
 
 // @desc    Create new mission
@@ -309,7 +148,7 @@ export const createMission = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler('Please provide all required fields', 400));
   }
 
-  const mission = await Mission.create({
+  const mission = await Task.create({ // Use Task model for creation
     title,
     briefing,
     description: description || '',
@@ -320,7 +159,7 @@ export const createMission = catchAsyncError(async (req, res, next) => {
     deliverables: deliverables || [],
     gradingRubric: gradingRubric || '',
     createdBy: userId,
-    status: 'active'
+    status: 'active' // Ensure new missions are set to active by default
   });
 
   await mission.populate('createdBy', 'name email');
@@ -336,13 +175,13 @@ export const createMission = catchAsyncError(async (req, res, next) => {
 // @route   GET /api/missions/all
 // @access  Private (Admin/Mentor)
 export const getAllMissions = catchAsyncError(async (req, res, next) => {
-  const missions = await Mission.find()
+  const missions = await Task.find() // Use Task model for admin view
     .populate('createdBy', 'name email')
     .sort({ createdAt: -1 });
 
   // Get acceptance counts for each mission
   const missionIds = missions.map(m => m._id);
-  const acceptanceCounts = await MissionAcceptance.aggregate([
+  const acceptanceCounts = await MissionAcceptance.aggregate([ // Use new model
     { $match: { mission: { $in: missionIds } } },
     { $group: { _id: '$mission', count: { $sum: 1 } } }
   ]);
@@ -369,10 +208,10 @@ export const getAllMissions = catchAsyncError(async (req, res, next) => {
 // @route   GET /api/missions/acceptances
 // @access  Private (Admin/Mentor)
 export const getAllAcceptances = catchAsyncError(async (req, res, next) => {
-  const acceptances = await MissionAcceptance.find()
+  const acceptances = await MissionAcceptance.find() // Use new model
     .populate('mission', 'title level deadline')
     .populate('student', 'name email rollNumber')
-    .populate('adminApproval.approvedBy', 'name')
+    // .populate('adminApproval.approvedBy', 'name') // Removed: simplicity first
     .sort({ acceptedAt: -1 });
 
   res.status(200).json({
@@ -387,10 +226,10 @@ export const getAllAcceptances = catchAsyncError(async (req, res, next) => {
 // @access  Private (Admin/Mentor)
 export const approveMissionAcceptance = catchAsyncError(async (req, res, next) => {
   const { acceptanceId } = req.params;
-  const { approved, rejectionReason } = req.body;
+  const { approved, rejectionReason } = req.body; // Can ignore rejectionReason for simplicity
   const userId = req.user._id;
 
-  const acceptance = await MissionAcceptance.findById(acceptanceId)
+  const acceptance = await MissionAcceptance.findById(acceptanceId) // Use new model
     .populate('mission', 'title')
     .populate('student', 'name email');
 
@@ -398,20 +237,10 @@ export const approveMissionAcceptance = catchAsyncError(async (req, res, next) =
     return next(new ErrorHandler('Mission acceptance not found', 404));
   }
 
-  if (acceptance.adminApproval.status !== 'pending') {
-    return next(new ErrorHandler('This acceptance has already been processed', 400));
-  }
-
+  // Simplified approval logic
   if (approved) {
-    acceptance.adminApproval.status = 'approved';
-    acceptance.adminApproval.approvedBy = userId;
-    acceptance.adminApproval.approvedAt = Date.now();
     acceptance.status = 'in-progress';
   } else {
-    acceptance.adminApproval.status = 'rejected';
-    acceptance.adminApproval.approvedBy = userId;
-    acceptance.adminApproval.approvedAt = Date.now();
-    acceptance.adminApproval.rejectionReason = rejectionReason || 'No reason provided';
     acceptance.status = 'rejected';
   }
 
@@ -419,7 +248,7 @@ export const approveMissionAcceptance = catchAsyncError(async (req, res, next) =
 
   res.status(200).json({
     success: true,
-    message: approved ? 'Mission approved successfully' : 'Mission rejected',
+    message: approved ? 'Mission status updated to In-Progress' : 'Mission status updated to Rejected',
     acceptance
   });
 });
@@ -430,17 +259,17 @@ export const approveMissionAcceptance = catchAsyncError(async (req, res, next) =
 export const deleteMission = catchAsyncError(async (req, res, next) => {
   const { missionId } = req.params;
 
-  const mission = await Mission.findById(missionId);
+  const mission = await Task.findById(missionId); // Use Task model
 
   if (!mission) {
     return next(new ErrorHandler('Mission not found', 404));
   }
 
   // Check if there are acceptances
-  const acceptanceCount = await MissionAcceptance.countDocuments({ mission: missionId });
+  const acceptanceCount = await MissionAcceptance.countDocuments({ mission: missionId }); // Use new model
 
   if (acceptanceCount > 0) {
-    return next(new ErrorHandler(`Cannot delete mission. ${acceptanceCount} team(s) have accepted this mission.`, 400));
+    return next(new ErrorHandler(`Cannot delete mission. ${acceptanceCount} student(s) have accepted this mission.`, 400));
   }
 
   await mission.deleteOne();

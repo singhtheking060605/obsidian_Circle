@@ -1,3 +1,4 @@
+// backend/routes/missionRoute.js
 import express from 'express';
 const router = express.Router();
 import { protect, authorize } from '../middlewares/auth.js';
@@ -7,8 +8,8 @@ import {
   getActiveMissions,
   acceptMission,
   getMyMissions,
-  updateTeamDetails,
-  submitForApproval,
+  updateTeamDetails, // These three functions now return a 501 error in the controller
+  submitForApproval, // until further implementation is done
   uploadEvidence,
   getAllAcceptances,
   approveMissionAcceptance,
@@ -19,9 +20,9 @@ import {
 router.get('/active', protect, getActiveMissions);
 router.post('/:missionId/accept', protect, acceptMission);
 router.get('/my-missions', protect, getMyMissions);
-router.put('/acceptance/:acceptanceId/team', protect, updateTeamDetails);
-router.post('/acceptance/:acceptanceId/submit-approval', protect, submitForApproval);
-router.post('/acceptance/:acceptanceId/upload', protect, uploadEvidence);
+router.put('/acceptance/:acceptanceId/team', protect, updateTeamDetails); // Stubbed
+router.post('/acceptance/:acceptanceId/submit-approval', protect, submitForApproval); // Stubbed
+router.post('/acceptance/:acceptanceId/upload', protect, uploadEvidence); // Stubbed
 
 // ADMIN/MENTOR ROUTES
 router.post('/', protect, authorize('Mentor'), createMission);

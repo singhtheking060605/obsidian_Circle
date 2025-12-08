@@ -495,19 +495,14 @@
 // });
 
 
-// controllers/teamController.js - CRITICAL IMPORTS FIX
-
 import { Team } from "../models/TeamModel.js"; 
-import { User } from "../models/userModel.js"; // <- ENSURE CAPITAL U and M
-import { Task } from "../models/TaskModel.js"; // <- ENSURE CAPITAL T and M
-import { TeamProgress } from "../models/TeamProgressModel.js"; // <- ENSURE CAPITAL T, P, and M
+import { User } from "../models/userModel.js"; // CRITICAL FIX: Use exact casing of the imported file name ('userModel.js')
+import { Task } from "../models/TaskModel.js"; // CRITICAL: Ensure Task model is correctly imported
+import { TeamProgress } from "../models/TeamProgressModel.js"; 
 import { catchAsyncError } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/error.js";
-// ... other imports ...
-
-// ... (Rest of the complete code for all team management and mission functions)
-// (The full logic provided in the previous response is retained below, 
-// focused now on the correct imports)
+// import main from "../config/gemini.js"; 
+// import { sendEmail } from "../utils/sendEmail.js"; 
 
 // =========================================================
 // TEAM CRUD OPERATIONS
@@ -517,7 +512,10 @@ import ErrorHandler from "../middlewares/error.js";
 // @route   GET /api/team/me
 // @access  Private
 export const getMyTeam = catchAsyncError(async (req, res, next) => {
-    const team = await Team.findOne({ 'members.user': req.user.id })
+    // FIX: Standardized user ID access
+    const userId = req.user.id; 
+    
+    const team = await Team.findOne({ 'members.user': userId })
         .populate('members.user', 'name email'); 
 
     if (!team) {
@@ -527,7 +525,7 @@ export const getMyTeam = catchAsyncError(async (req, res, next) => {
             message: "User is not currently in a team."
         });
     }
-    team.currentUserId = req.user.id; 
+    team.currentUserId = userId; 
 
     res.status(200).json({
         success: true,
@@ -735,17 +733,16 @@ export const cancelApprovalRequest = catchAsyncError(async (req, res, next) => {
 // @route   GET /api/team/available-tasks
 // @access  Private (Authenticated users)
 export const getAvailableTasks = catchAsyncError(async (req, res, next) => {
-    // 1. Find all missions (tasks)
-    // If tasks are not appearing, the failure is almost certainly here or in the model definition/import.
-   const tasks = await Task.find({}); // Fetch ALL tasks without filters
+    // FIX: Using Task.find({}) to ensure the broadest possible query. 
+    const tasks = await Task.find({}); 
 
-    // 2. Determine if the current user has a team (for button logic)
+    // 2. Check if the current user has a team (for button logic)
     const team = await Team.findOne({ 'members.user': req.user.id });
     const hasTeam = !!team;
     
     res.status(200).json({
         success: true,
-        tasks: tasks,
+        tasks: tasks, // Returns the full array of tasks fetched from DB
         hasTeam: hasTeam
     });
 });
