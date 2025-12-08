@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import { connectDatabase } from "./config/database.js";
+const githubRoutes = require("./routes/githubRoutes");
 import userRoutes from "./routes/userRoutes.js";
 import teamRoutes from "./routes/teamRoutes.js";
 
@@ -53,6 +54,7 @@ app.get("/", (req, res) => {
 // API Routes - MUST come before 404 handler
 app.use("/api/auth", userRoutes);
 app.use("/api/team", teamRoutes);
+app.use("/api/v1/github", githubRoutes);
 
 // Optional: Test route to verify routing is working
 app.get("/api/test", (req, res) => {
