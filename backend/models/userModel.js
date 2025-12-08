@@ -12,22 +12,42 @@ const userSchema = new mongoose.Schema({
     trim: true,
     lowercase: true,
   },
-  password: {
+
+  googleId: {
     type: String,
+    unique: true,
+    sparse: true
+  },
+
+  password: { 
+    type: String, 
     required: [true, "Please enter your password"],
     minlength: [8, "Password must be at least 8 characters"],
     select: false,
   },
+
   name: {
     type: String,
     required: [true, "Please enter your name"],
     trim: true,
   },
+
   phone: {
     type: String,
     required: [true, "Please enter your phone number"],
     unique: true,
     trim: true,
+  },
+
+  // Added from other branch
+  branch: {
+    type: String,
+    trim: true
+  },
+
+  rollNumber: {
+    type: String,
+    trim: true
   },
 
   // Role Management
@@ -66,21 +86,26 @@ const userSchema = new mongoose.Schema({
   verificationCodeExpire: {
     type: Date,
   },
+
   profilePhoto: {
-    type: String, // Will store Cloudinary URL
+    type: String,
     default: "https://api.dicebear.com/7.x/avataaars/svg?seed=default",
   },
+
   resume: {
-    type: String, // Will store Cloudinary URL
+    type: String,
   },
+
   bio: {
     type: String,
     maxlength: [500, "Bio cannot exceed 500 characters"],
   },
+
   github: {
-    type: String, // Will store the GitHub URL/username
+    type: String,
     trim: true,
   },
+
   // Password Reset
   resetPasswordToken: String,
   resetPasswordExpire: Date,
@@ -111,7 +136,7 @@ userSchema.pre("save", function (next) {
   next();
 });
 
-// Compare password method
+// Compare password
 userSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
@@ -149,12 +174,12 @@ userSchema.methods.generateResetPasswordToken = function () {
     .update(resetToken)
     .digest("hex");
     
-  this.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 minutes
+  this.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
   
   return resetToken;
 };
 
-// Mentor Profile Schema (One-to-One relationship)
+// Mentor Profile Schema
 const mentorProfileSchema = new mongoose.Schema({
   user: { 
     type: mongoose.Schema.Types.ObjectId, 

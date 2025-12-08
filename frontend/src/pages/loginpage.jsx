@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
+import { useAuth } from '../context/AuthContext';
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+  const { setUser } = useAuth();
+
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -18,6 +24,7 @@ const LoginPage = () => {
     setError('');
   };
 
+  // --- STANDARD LOGIN ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -51,12 +58,66 @@ const LoginPage = () => {
         throw new Error(data.message || 'Login failed');
       }
 
+      // Success Logic
       alert('Login successful!');
-      // Redirect to dashboard
-      window.location.href = '/dashboard';
+      setUser(data.user); // Update Context
+
+      // Redirect based on Role
+      const userRoles = data.user?.roles || [];
+      if (userRoles.some(role => ['Mentor', 'Admin', 'Alumni'].includes(role))) {
+        navigate('/mentor/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+
     } catch (err) {
       console.error('❌ Login error:', err);
       setError(err.message || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- GOOGLE LOGIN ---
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      console.log("📤 Sending Google token to backend...");
+      
+      const response = await fetch(`${API_URL}/google`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          token: credentialResponse.credential
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Google Login failed');
+      }
+
+      // Success Logic
+      alert('Google Login successful!');
+      setUser(data.user); // Update Context
+
+      // Redirect based on Role
+      const userRoles = data.user?.roles || [];
+      if (userRoles.some(role => ['Mentor', 'Admin', 'Alumni'].includes(role))) {
+        navigate('/mentor/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+
+    } catch (err) {
+      console.error('❌ Google Auth Error:', err);
+      setError(err.message || 'Google Login Failed');
     } finally {
       setLoading(false);
     }
@@ -139,9 +200,35 @@ const LoginPage = () => {
             >
               {loading ? 'Logging in...' : 'Login'}
             </button>
+
+            {/* Google Login Divider */}
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-700"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-gray-900 text-gray-400">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+
+            {/* Google Button */}
+            <div className="flex justify-center w-full">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => {
+                  setError('Google Login Failed');
+                }}
+                theme="filled_black"
+                shape="pill"
+                width="100%"
+                text="signin_with"
+              />
+            </div>
           </div>
 
-          {/* Divider */}
+          {/* Divider for Sign Up */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-red-900/30"></div>
@@ -155,7 +242,7 @@ const LoginPage = () => {
 
           {/* Sign Up Link */}
           <button
-            onClick={() => window.location.href = '/signup'}
+            onClick={() => navigate('/signup')}
             className="w-full bg-gray-800/50 hover:bg-gray-800 border border-red-900/30 hover:border-red-500/50 text-white py-3 rounded-lg font-semibold transition-all"
           >
             Create Account
@@ -164,7 +251,7 @@ const LoginPage = () => {
           {/* Back to Home */}
           <div className="mt-6 text-center">
             <button
-              onClick={() => window.location.href = '/'}
+              onClick={() => navigate('/')}
               className="text-gray-400 hover:text-red-400 text-sm transition-colors"
             >
               ← Back to Home

@@ -1,9 +1,8 @@
-
-
-
-
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+
+// Layout
+import DashboardLayout from './layout/DashboardLayout.jsx';
 
 // Public Pages
 import HomePage from './pages/homepage.jsx'; 
@@ -12,25 +11,87 @@ import SignupPage from './pages/signuppage.jsx';
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 
+
 // Protected Pages
-import StudentDashboard from './pages/StudentDashboard.jsx';
-import ProtectedRoute from './components/ProtectedRoute.jsx'; // Import the guard
+// ✅ FIXED: Make sure the import matches the EXACT file name
+// import StudentDashboard from './pages/StudentDashboard.jsx';
+import AcceptInvitationPage from './pages/AcceptInvitationPage.jsx';
+
+// Student Components & Pages
+import PersonalDashboard from './components/PersonalDashboard.jsx'; 
+import TeamManagement from './components/TeamManagement.jsx'; 
+import MissionsPage from './pages/student/MissionsPage.jsx'; 
+import AlumniPage from './pages/student/AlumniPage.jsx'; 
+
+// Mentor Pages
+import MentorDashboard from './pages/admin/MentorDashboard.jsx';
+import AdminTaskPage from './pages/admin/AdminTaskPage.jsx';
+import AdminTeamsPage from './pages/admin/AdminTeamsPage.jsx';
+
+import QnAPage from './pages/QnAPage.jsx';
+
+import AdminEvaluate from './pages/admin/AdminEvaluate.jsx'; // <--- ADD THIS IMPORT
+
+// Components
+
+import ProtectedRoute from './components/ProtectedRoute.jsx';
+
+// ... imports
+import AdminReferral from './pages/admin/AdminReferral.jsx'; // <--- Import
+
+// ... inside <Routes> under MENTOR ROUTES
+import AdminStudents from './pages/admin/AdminStudents.jsx';
 
 function App() {
   return (
     <div className="App">
       <Routes>
-        {/* Public Routes */}
+        {/* --- Public Routes --- */}
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/password/reset/:token" element={<ResetPasswordPage />} />
+        
+        {/* Accept Team Invitation - Public Route */}
+        <Route path="/accept-invitation/:token" element={<AcceptInvitationPage />} />
 
-        {/* Protected Routes - Only accessible if logged in */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<StudentDashboard />} />
+        {/* --- Protected Routes wrapped in DashboardLayout --- */}
+        <Route element={<DashboardLayout />}>
+          
+          {/* STUDENT ROUTES */}
+          <Route element={<ProtectedRoute allowedRoles={['Student']} />}>
+            <Route path="/dashboard" element={
+              <div className="p-4 md:p-8"><PersonalDashboard /></div>
+            } />
+            <Route path="/team/me" element={
+              <div className="p-4 md:p-8"><TeamManagement /></div>
+            } />
+            <Route path="/missions" element={<MissionsPage />} />
+            <Route path="/alumni" element={<AlumniPage />} />
+             {/* ... existing routes ... */}
+            <Route path="/qna" element={<QnAPage />} /> {/* ADD THIS LINE */}
+          </Route>
+
+          {/* MENTOR ROUTES */}
+          <Route element={<ProtectedRoute allowedRoles={['Mentor', 'Admin', 'Alumni']} />}>
+            <Route path="/mentor/dashboard" element={<MentorDashboard />} />
+            <Route path="/mentor/tasks" element={<AdminTaskPage />} />
+            <Route path="/mentor/teams" element={<AdminTeamsPage />} />
+            <Route path="/mentor/qna" element={<QnAPage />} /> {/* ADD THIS LINE */}
+            <Route path="/mentor/evaluate" element={<AdminEvaluate />} /> {/* <--- ADD THIS ROUTE */}
+
+            <Route path="/mentor/referral" element={<AdminReferral />} /> {/* <--- Add Route */}
+            <Route path="/mentor/students" element={<AdminStudents />} />
+            <Route path="/mentor/alumni" element={<AlumniPage />} />
+
+          </Route>
+
         </Route>
+
+
+        {/* --- 404 Route --- */}
+        <Route path="*" element={<div className="text-white text-center mt-20 text-xl font-creepster">404 - You are lost in the Upside Down</div>} />
 
       </Routes>
     </div>

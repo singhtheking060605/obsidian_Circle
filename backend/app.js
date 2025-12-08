@@ -8,6 +8,13 @@ import { connectDatabase } from "./config/database.js";
 const githubRoutes = require("./routes/githubRoutes");
 import userRoutes from "./routes/userRoutes.js";
 import teamRoutes from "./routes/teamRoutes.js";
+import taskRoutes from "./routes/taskRoutes.js"; //     // <--- ADD THIS
+import rubricRoutes from "./routes/rubricRoutes.js"; // <--- ADD THIS
+import invitationRoutes from "./routes/invitationRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js"; // <--- ADD THIS
+// ... existing imports
+import referralRoutes from "./routes/referralRoutes.js"; // <--- Add Import
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,12 +42,21 @@ export const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(
-  cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
-    credentials: true,
-  })
-);
+
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  credentials: true,
+}));
+
+// Routes
+app.use("/api/auth", userRoutes);
+app.use("/api/team", teamRoutes);
+app.use("/api/task", taskRoutes); // <--- REGISTER THIS ROUTE
+app.use("/api/referral", referralRoutes); // <--- Register Route
+
+app.use("/api/invitation", invitationRoutes); // ✅ FIXED: Removed /v1
+app.use("/api/chat", chatRoutes); // <--- Add this line
+
 
 // Root route
 app.get("/", (req, res) => {
@@ -64,7 +80,6 @@ app.get("/api/test", (req, res) => {
   });
 });
 
-// 404 handler - MUST be after all other routes
 app.use((req, res, next) => {
   console.log(`⚠️ 404 - Route not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({
