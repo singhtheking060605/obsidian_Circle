@@ -7,7 +7,8 @@ import {
   forgotPassword, 
   resetPassword, 
   getUser, 
-  getAllStudents // <--- Import this
+  getAllStudents,
+  googleLogin// <--- Import this
 } from "../controllers/usercontroller.js";
 import { isAuthenticated, authorizeRoles } from "../middlewares/auth.js";
 
@@ -20,6 +21,7 @@ router.get("/logout", logout);
 router.post("/password/forgot", forgotPassword);
 router.put("/password/reset/:token", resetPassword);
 router.get("/me", isAuthenticated, getUser);
+router.post("/google", googleLogin); // <--- Add this route
 
 // New Route for Student Directory
 router.get("/students", isAuthenticated, authorizeRoles("Admin", "Mentor", "Alumni"), getAllStudents);

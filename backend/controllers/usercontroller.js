@@ -7,6 +7,8 @@ import { sendEmail } from "../utils/sendEmail.js";
 import twilio from "twilio";
 import { sendToken } from "../utils/sendToken.js";
 import crypto from "crypto";
+import { OAuth2Client } from 'google-auth-library';
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
 
@@ -360,4 +362,51 @@ export const getAllStudents = catchAsyncError(async (req, res, next) => {
     success: true,
     students
   });
+});
+
+export const googleLogin = catchAsyncError(async (req, res, next) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return next(new ErrorHandler("Google Token is required", 400));
+  }
+
+  // 1. Verify Google Token
+  const ticket = await googleClient.verifyIdToken({
+    idToken: token,
+    audience: process.env.GOOGLE_CLIENT_ID,
+  });
+  
+  const { name, email, picture, sub: googleId } = ticket.getPayload();
+
+  // 2. Check if user exists
+  let user = await User.findOne({ email });
+
+  if (user) {
+    // If user exists but doesn't have googleId linked, link it now
+    if (!user.googleId) {
+      user.googleId = googleId;
+      // If user had an avatar and now has a google picture, you might update it here
+      await user.save();
+    }
+  } else {
+    // 3. Create new user if they don't exist
+    const randomPassword = crypto.randomBytes(20).toString('hex'); // Generate random password
+    
+    // We assume Google emails are verified
+    user = await User.create({
+      name,
+      email,
+      password: randomPassword, 
+      phone: "", // You might need to handle this if phone is required in your Schema
+      googleId,
+      accountVerified: true,
+      emailVerified: true,
+      status: 'Active',
+      roles: ['Student']
+    });
+  }
+
+  // 4. Send Token (Use your existing sendToken utility)
+  sendToken(user, 200, "Google Login Successful", res);
 });
