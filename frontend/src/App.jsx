@@ -83,6 +83,7 @@ function App() {
 
             <Route path="/mentor/referral" element={<AdminReferral />} /> {/* <--- Add Route */}
             <Route path="/mentor/students" element={<AdminStudents />} />
+            <Route path="/mentor/alumni" element={<AlumniPage />} />
 
           </Route>
 

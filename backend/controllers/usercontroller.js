@@ -410,3 +410,44 @@ export const googleLogin = catchAsyncError(async (req, res, next) => {
   // 4. Send Token (Use your existing sendToken utility)
   sendToken(user, 200, "Google Login Successful", res);
 });
+
+// --- NEW NETWORK & SEARCH FUNCTIONS ---
+
+// 1. Get Recommendations (Alumni/Mentors)
+export const getAllAlumni = catchAsyncError(async (req, res, next) => {
+  const alumni = await User.find({
+    $and: [
+      { _id: { $ne: req.user._id } }, // Exclude self
+      {
+        $or: [
+          { roles: "Mentor" },
+          { roles: "Alumni" },
+          { isAlumnus: true }
+        ]
+      }
+    ]
+  }).select("name email roles company roleTitle avatar");
+
+  res.status(200).json({ success: true, alumni });
+});
+
+// 2. Global Search (Find ANY student or mentor)
+export const searchUsers = catchAsyncError(async (req, res, next) => {
+  const { query } = req.query;
+  
+  if (!query) return res.status(200).json({ success: true, users: [] });
+
+  const users = await User.find({
+    $and: [
+      { _id: { $ne: req.user._id } }, // Exclude self
+      {
+        $or: [
+          { name: { $regex: query, $options: "i" } },
+          { email: { $regex: query, $options: "i" } }
+        ]
+      }
+    ]
+  }).select("name email roles company roleTitle avatar").limit(20);
+
+  res.status(200).json({ success: true, users });
+});

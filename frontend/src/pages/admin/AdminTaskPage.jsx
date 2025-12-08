@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../../context/AuthContext'; // Import Auth
 
 const AdminTaskPage = () => {
+  const { user } = useAuth(); // Get current user info
   const [activeTab, setActiveTab] = useState('view');
   const [tasks, setTasks] = useState([]);
-  const [rubrics, setRubrics] = useState([]); // Store available rubrics
+  const [rubrics, setRubrics] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Form State
@@ -13,28 +15,25 @@ const AdminTaskPage = () => {
     description: '',
     deadline: '',
     assignedTo: 'All',
-    deliverables: '', // Comma separated string for input
-    expectedSkills: '', // Comma separated string for input
+    deliverables: '',
+    expectedSkills: '',
     rubric: ''
   });
 
-  // FIX: Default API URL adjusted to match backend (removed /v1)
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
   // --- FETCH DATA ---
   const fetchData = async () => {
     try {
       setLoading(true);
-      // FIX: URL path updated
       const tasksRes = await axios.get(`${API_URL}/task/all`, { withCredentials: true });
       if (tasksRes.data.success) setTasks(tasksRes.data.tasks);
 
-      // Fetch Rubrics (only if the route exists)
       try {
         const rubricsRes = await axios.get(`${API_URL}/rubric/all`, { withCredentials: true });
         if (rubricsRes.data.success) setRubrics(rubricsRes.data.rubrics);
       } catch (err) {
-        console.warn("Rubric fetch failed - route might be missing", err);
+        console.warn("Rubric fetch failed", err);
       }
 
     } catch (error) {
@@ -54,7 +53,6 @@ const AdminTaskPage = () => {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      // Convert comma-separated strings to arrays
       const payload = {
         ...newTask,
         deliverables: newTask.deliverables.split(',').map(item => item.trim()).filter(i => i),
@@ -66,6 +64,7 @@ const AdminTaskPage = () => {
         alert("Mission Initiated Successfully!");
         setNewTask({ title: '', description: '', deadline: '', assignedTo: 'All', deliverables: '', expectedSkills: '', rubric: '' });
         setActiveTab('view');
+        fetchData();
       }
     } catch (error) {
       alert(error.response?.data?.message || "Failed to create task");
@@ -73,17 +72,17 @@ const AdminTaskPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Scrub this mission?")) return;
+    if (!window.confirm("Scrub this mission? This action cannot be undone.")) return;
     try {
       await axios.delete(`${API_URL}/task/${id}`, { withCredentials: true });
       setTasks(tasks.filter(t => t._id !== id));
+      alert("Mission deleted successfully.");
     } catch (error) {
-      alert("Failed to delete");
+      alert(error.response?.data?.message || "Failed to delete task.");
     }
   };
 
   return (
-    // FIX: Removed 'ml-64' and 'w-full' to prevent layout leak
     <div className="p-8 text-gray-200 font-sans animate-fade-in">
       
       {/* HEADER */}
@@ -98,36 +97,57 @@ const AdminTaskPage = () => {
       {/* --- VIEW MODE --- */}
       {activeTab === 'view' && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {loading ? <p className="text-red-500 animate-pulse font-creepster">Scanning...</p> : tasks.map(task => (
-            <div key={task._id} className="bg-gray-900/40 border border-red-900/20 p-6 rounded-xl hover:border-red-600/50 transition-all group relative overflow-hidden">
-              <div className="relative z-10">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-bold text-white group-hover:text-red-400 transition-colors">{task.title}</h3>
-                  <button onClick={() => handleDelete(task._id)} className="text-gray-600 hover:text-red-500"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-                </div>
-                <p className="text-gray-400 text-sm mb-4 line-clamp-2">{task.description}</p>
-                
-                {/* Task Details Badges */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {task.expectedSkills?.slice(0,3).map(skill => (
-                    <span key={skill} className="text-[10px] bg-red-900/20 text-red-300 px-2 py-1 rounded border border-red-900/30">{skill}</span>
-                  ))}
-                  {task.rubric && (
-                    <span className="text-[10px] bg-purple-900/20 text-purple-300 px-2 py-1 rounded border border-purple-900/30">Rubric Attached</span>
-                  )}
-                </div>
+          {loading ? <p className="text-red-500 animate-pulse font-creepster">Scanning...</p> : tasks.map(task => {
+            // Logic: Check if task creator ID matches current user ID
+            // Handle both populated object and direct ID string
+            const creatorId = task.createdBy?._id || task.createdBy;
+            const isCreator = creatorId === user?._id;
 
-                <div className="flex justify-between items-center text-xs font-mono text-gray-600 border-t border-gray-800 pt-3 mt-2">
-                  <span>Due: {new Date(task.deadline).toLocaleDateString()}</span>
-                  <span>To: {task.assignedTo}</span>
+            return (
+              <div key={task._id} className="bg-gray-900/40 border border-red-900/20 p-6 rounded-xl hover:border-red-600/50 transition-all group relative overflow-hidden">
+                <div className="relative z-10">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-white group-hover:text-red-400 transition-colors">{task.title}</h3>
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        Issued by: {task.createdBy?.name || 'Unknown'}
+                      </p>
+                    </div>
+                    
+                    {/* ONLY SHOW DELETE BUTTON IF USER IS CREATOR */}
+                    {isCreator && (
+                      <button 
+                        onClick={() => handleDelete(task._id)} 
+                        className="text-gray-600 hover:text-red-500 p-2 rounded-full hover:bg-red-900/20 transition-all"
+                        title="Delete Mission"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-gray-400 text-sm mb-4 line-clamp-2">{task.description}</p>
+                  
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {task.expectedSkills?.slice(0,3).map(skill => (
+                      <span key={skill} className="text-[10px] bg-red-900/20 text-red-300 px-2 py-1 rounded border border-red-900/30">{skill}</span>
+                    ))}
+                    {task.rubric && (
+                      <span className="text-[10px] bg-purple-900/20 text-purple-300 px-2 py-1 rounded border border-purple-900/30">Rubric Attached</span>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs font-mono text-gray-600 border-t border-gray-800 pt-3 mt-2">
+                    <span>Due: {new Date(task.deadline).toLocaleDateString()}</span>
+                    <span>To: {task.assignedTo}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* --- CREATE MODE --- */}
+      {/* --- CREATE MODE (Unchanged) --- */}
       {activeTab === 'create' && (
         <div className="max-w-4xl mx-auto bg-gray-900/30 p-8 rounded-2xl border border-red-900/30 backdrop-blur-sm">
           <form onSubmit={handleCreate} className="space-y-6">
@@ -142,7 +162,6 @@ const AdminTaskPage = () => {
                 <textarea required className="w-full h-32 bg-black/50 border border-red-900/30 rounded-lg px-4 py-3 text-white focus:border-red-500 focus:outline-none placeholder-gray-700 resize-none" placeholder="Mission details..." value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})} />
               </div>
 
-              {/* NEW FIELDS */}
               <div>
                 <label className="block text-xs font-bold text-red-500 uppercase tracking-widest mb-2">Deliverables (comma separated)</label>
                 <input type="text" className="w-full bg-black/50 border border-red-900/30 rounded-lg px-4 py-3 text-white focus:border-red-500 focus:outline-none placeholder-gray-700 text-sm" placeholder="e.g. Source Code, Demo Video, PDF Report" value={newTask.deliverables} onChange={(e) => setNewTask({...newTask, deliverables: e.target.value})} />
@@ -166,7 +185,6 @@ const AdminTaskPage = () => {
                     <option key={r._id} value={r._id}>{r.title}</option>
                   ))}
                 </select>
-                <p className="text-[10px] text-gray-500 mt-1">Select a pre-configured rubric for grading.</p>
               </div>
             </div>
 

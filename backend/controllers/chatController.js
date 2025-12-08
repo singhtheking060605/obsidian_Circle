@@ -7,32 +7,29 @@ import ErrorHandler from "../middlewares/error.js";
 // --- SEARCH USERS ---
 export const searchUsers = catchAsyncError(async (req, res, next) => {
   const { query } = req.query;
+  if (!query) return res.status(200).json({ success: true, users: [] });
 
-  if (!query) {
-    return next(new ErrorHandler("Please enter a name or email to search", 400));
-  }
-
-  // Find users by name or email, excluding the current user
   const users = await User.find({
-    $or: [
-      { name: { $regex: query, $options: "i" } },
-      { email: { $regex: query, $options: "i" } }
-    ],
-    _id: { $ne: req.user._id }
-  }).select("name email roles avatar"); // Select only necessary fields
+    $and: [
+      { _id: { $ne: req.user._id } },
+      {
+        $or: [
+          { name: { $regex: query, $options: "i" } },
+          { email: { $regex: query, $options: "i" } }
+        ]
+      }
+    ]
+  }).select("name email roles company roleTitle avatar");
 
   res.status(200).json({ success: true, users });
 });
 
-// --- CREATE REQUEST ---
+// --- SEND REQUEST ---
 export const createRequest = catchAsyncError(async (req, res, next) => {
-  const { receiverId, topic, teamId } = req.body;
+  const { receiverId, topic } = req.body;
+  if (!receiverId) return next(new ErrorHandler("Receiver ID required", 400));
 
-  if (!receiverId) {
-    return next(new ErrorHandler("Receiver ID is required", 400));
-  }
-
-  // Check if session already exists
+  // Check if session already exists (Pending OR Active)
   const existingSession = await ChatSession.findOne({
     $or: [
       { sender: req.user._id, receiver: receiverId },
@@ -42,14 +39,13 @@ export const createRequest = catchAsyncError(async (req, res, next) => {
   });
 
   if (existingSession) {
-    return next(new ErrorHandler("A chat session already exists with this user.", 400));
+    return next(new ErrorHandler("Connection already exists or is pending.", 400));
   }
 
   const session = await ChatSession.create({
     sender: req.user._id,
     receiver: receiverId,
-    team: teamId || null, // Optional
-    topic: topic || "General Discussion",
+    topic: topic || "Connection Request",
     status: 'pending'
   });
 
@@ -59,60 +55,69 @@ export const createRequest = catchAsyncError(async (req, res, next) => {
 // --- ACCEPT REQUEST ---
 export const acceptRequest = catchAsyncError(async (req, res, next) => {
   const { sessionId } = req.body;
-
   let session = await ChatSession.findById(sessionId);
-  if (!session) return next(new ErrorHandler("Session not found", 404));
+  if (!session) return next(new ErrorHandler("Request not found", 404));
 
-  // Security: Only the receiver can accept
   if (session.receiver.toString() !== req.user._id.toString()) {
-    return next(new ErrorHandler("You are not authorized to accept this request.", 403));
+    return next(new ErrorHandler("Unauthorized", 403));
   }
 
   session.status = 'active';
   session.updatedAt = Date.now();
   await session.save();
-
-  // Populate info for frontend
   await session.populate(['sender', 'receiver']);
 
   res.status(200).json({ success: true, session });
 });
 
-// --- GET PENDING REQUESTS (INCOMING) ---
-export const getIncomingRequests = catchAsyncError(async (req, res, next) => {
-  const requests = await ChatSession.find({ 
-    status: 'pending',
-    receiver: req.user._id 
-  })
-    .populate('sender', 'name email roles')
-    .sort({ createdAt: -1 });
+// --- GET NETWORK STATUS (All Interactions) ---
+// This is critical for the "LinkedIn" style buttons
+export const getNetworkStatus = catchAsyncError(async (req, res, next) => {
+  const userId = req.user._id;
 
-  res.status(200).json({ success: true, requests });
+  // 1. Incoming Requests (To me, Pending) - Show in "Invitations"
+  const incoming = await ChatSession.find({ 
+    receiver: userId, 
+    status: 'pending' 
+  }).populate('sender', 'name email roles company roleTitle');
+
+  // 2. Sent Requests (From me, Pending) - Show "Pending" button
+  const sent = await ChatSession.find({ 
+    sender: userId, 
+    status: 'pending' 
+  }).select('receiver');
+
+  // 3. Active Connections (Chat active) - Show "Message" button
+  const connected = await ChatSession.find({ 
+    $or: [{ sender: userId }, { receiver: userId }], 
+    status: 'active' 
+  }).select('sender receiver');
+
+  res.status(200).json({ 
+    success: true, 
+    incoming, 
+    sent: sent.map(s => s.receiver.toString()), 
+    connected: connected.map(s => s.sender.toString() === userId.toString() ? s.receiver.toString() : s.sender.toString())
+  });
 });
 
-// --- GET ACTIVE CHATS ---
-export const getMyChats = catchAsyncError(async (req, res, next) => {
-  const query = {
-    $or: [
-      { sender: req.user._id },
-      { receiver: req.user._id }
-    ],
-    status: 'active'
-  };
-
-  const sessions = await ChatSession.find(query)
-    .populate('sender', 'name email roles')
-    .populate('receiver', 'name email roles')
-    .sort({ updatedAt: -1 });
-
-  res.status(200).json({ success: true, sessions });
-});
-
-// --- GET MESSAGES ---
+// --- GET MESSAGES (For Chat Page) ---
 export const getMessages = catchAsyncError(async (req, res, next) => {
   const messages = await Message.find({ session: req.params.sessionId })
     .populate('sender', 'name')
     .sort({ createdAt: 1 });
-
   res.status(200).json({ success: true, messages });
+});
+
+// --- GET MY CHATS (For Sidebar/List) ---
+export const getMyChats = catchAsyncError(async (req, res, next) => {
+  const sessions = await ChatSession.find({
+    $or: [{ sender: req.user._id }, { receiver: req.user._id }],
+    status: 'active'
+  })
+  .populate('sender', 'name email roles')
+  .populate('receiver', 'name email roles')
+  .sort({ updatedAt: -1 });
+
+  res.status(200).json({ success: true, sessions });
 });

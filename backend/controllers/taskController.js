@@ -4,10 +4,7 @@ import { Task } from "../models/TaskModel.js";
 import { TeamProgress } from "../models/TeamProgressModel.js"; 
 
 // @desc    Create a new Task (Mission)
-// @route   POST /api/v1/task/new
-// @access  Private (Admin, Alumni)
 export const createTask = catchAsyncError(async (req, res, next) => {
-  // Destructure all new fields from the request body
   const { 
     title, 
     description, 
@@ -29,10 +26,9 @@ export const createTask = catchAsyncError(async (req, res, next) => {
     description,
     deadline,
     assignedTo,
-    // Store arrays directly (frontend should send them as arrays)
     deliverables, 
     expectedSkills,
-    rubric: rubric || null, // Optional rubric
+    rubric: rubric || null,
     createdBy,
   });
 
@@ -43,12 +39,11 @@ export const createTask = catchAsyncError(async (req, res, next) => {
   });
 });
 
-// @desc    Get All Tasks
-// @route   GET /api/v1/task/all
-// @access  Public (Authenticated)
+// @desc    Get All Tasks (Visible to all Mentors)
 export const getAllTasks = catchAsyncError(async (req, res, next) => {
   const tasks = await Task.find()
-    .populate('rubric', 'title') // Populate rubric title for display
+    .populate('rubric', 'title')
+    .populate('createdBy', 'name') // Populate creator name for display
     .sort({ deadline: 1, createdAt: -1 });
 
   res.status(200).json({
@@ -59,8 +54,6 @@ export const getAllTasks = catchAsyncError(async (req, res, next) => {
 });
 
 // @desc    Get Single Task
-// @route   GET /api/v1/task/:id
-// @access  Public (Authenticated)
 export const getSingleTask = catchAsyncError(async (req, res, next) => {
   const task = await Task.findById(req.params.id).populate('rubric');
 
@@ -74,14 +67,17 @@ export const getSingleTask = catchAsyncError(async (req, res, next) => {
   });
 });
 
-// @desc    Update Task
-// @route   PUT /api/v1/task/:id
-// @access  Private (Admin, Alumni)
+// @desc    Update Task (Only Creator can update)
 export const updateTask = catchAsyncError(async (req, res, next) => {
   let task = await Task.findById(req.params.id);
 
   if (!task) {
     return next(new ErrorHandler("Task not found.", 404));
+  }
+
+  // Permission Check
+  if (task.createdBy.toString() !== req.user.id) {
+    return next(new ErrorHandler("You are not authorized to update this task.", 403));
   }
   
   task = await Task.findByIdAndUpdate(req.params.id, req.body, {
@@ -97,14 +93,17 @@ export const updateTask = catchAsyncError(async (req, res, next) => {
   });
 });
 
-// @desc    Delete Task
-// @route   DELETE /api/v1/task/:id
-// @access  Private (Admin, Alumni)
+// @desc    Delete Task (Only Creator can delete)
 export const deleteTask = catchAsyncError(async (req, res, next) => {
   const task = await Task.findById(req.params.id);
 
   if (!task) {
     return next(new ErrorHandler("Task not found.", 404));
+  }
+  
+  // --- NEW PERMISSION LOGIC ---
+  if (task.createdBy.toString() !== req.user.id) {
+    return next(new ErrorHandler("You can only delete missions you created.", 403));
   }
   
   await task.deleteOne();
@@ -117,9 +116,6 @@ export const deleteTask = catchAsyncError(async (req, res, next) => {
 
 // ---------------- ASSIGNMENT LOGIC ----------------
 
-// @desc    Assign a Team to a Task
-// @route   POST /api/v1/task/assign
-// @access  Private (Admin, Alumni)
 export const assignTeamToTask = catchAsyncError(async (req, res, next) => {
   const { teamId, taskId } = req.body;
 
@@ -127,7 +123,6 @@ export const assignTeamToTask = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Team ID and Task ID are required.", 400));
   }
 
-  // Check if assignment already exists
   const existingAssignment = await TeamProgress.findOne({ team: teamId, task: taskId });
   if (existingAssignment) {
     return next(new ErrorHandler("This squad is already assigned to this mission.", 400));
@@ -146,13 +141,10 @@ export const assignTeamToTask = catchAsyncError(async (req, res, next) => {
   });
 });
 
-// @desc    Get All Mission Assignments
-// @route   GET /api/v1/task/assignments/all
-// @access  Private (Admin, Alumni)
 export const getAllAssignments = catchAsyncError(async (req, res, next) => {
   const assignments = await TeamProgress.find()
-    .populate("team", "name leader repoLink") // Get team details
-    .populate("task", "title deadline")       // Get task details
+    .populate("team", "name leader repoLink")
+    .populate("task", "title deadline")
     .sort({ assignedAt: -1 });
 
   res.status(200).json({
@@ -161,14 +153,9 @@ export const getAllAssignments = catchAsyncError(async (req, res, next) => {
   });
 });
 
-// ---------------- EVALUATION LOGIC (NEW) ----------------
-
-// @desc    Evaluate a submission (Score & Feedback)
-// @route   PUT /api/task/evaluate/:id
-// @access  Private (Admin, Alumni)
 export const evaluateSubmission = catchAsyncError(async (req, res, next) => {
   const { score, feedback, status } = req.body;
-  const progressId = req.params.id; // This is the ID of the TeamProgress document
+  const progressId = req.params.id;
 
   let assignment = await TeamProgress.findById(progressId);
 
@@ -176,7 +163,6 @@ export const evaluateSubmission = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Submission record not found.", 404));
   }
 
-  // Update fields if provided
   if (score !== undefined) assignment.score = score;
   if (feedback !== undefined) assignment.feedback = feedback;
   if (status !== undefined) assignment.status = status;

@@ -4,19 +4,20 @@ import {
   searchUsers,
   createRequest, 
   acceptRequest, 
-  getIncomingRequests, 
+  getNetworkStatus, // <--- Import this
   getMyChats, 
   getMessages 
 } from "../controllers/chatController.js";
 
 const router = express.Router();
 
-// Public-ish routes (Authenticated users)
-router.get("/search", isAuthenticated, searchUsers); // <--- NEW
-router.post("/request", isAuthenticated, createRequest);
-router.put("/accept", isAuthenticated, acceptRequest);
-router.get("/requests/incoming", isAuthenticated, getIncomingRequests);
-router.get("/my-chats", isAuthenticated, getMyChats);
-router.get("/messages/:sessionId", isAuthenticated, getMessages);
+router.use(isAuthenticated);
+
+router.get("/search", searchUsers);
+router.post("/request", createRequest);
+router.put("/accept", acceptRequest);
+router.get("/network-status", getNetworkStatus); // <--- Register this
+router.get("/my-chats", getMyChats);
+router.get("/messages/:sessionId", getMessages);
 
 export default router;
