@@ -1,315 +1,452 @@
-// import { Mission, TeamMission } from '../models/missionModel.js';
-// import { User } from '../models/userModel.js';
-// import { sendEmail } from '../utils/sendEmail.js';
-// import { catchAsyncError } from '../middlewares/catchAsyncError.js';
-// import ErrorHandler from '../middlewares/error.js';
+import { Mission, MissionAcceptance } from '../models/Mission.js';
+import { catchAsyncError } from '../middlewares/catchAsyncError.js';
+import ErrorHandler from '../middlewares/error.js';
 
-// // Get all available missions
-// export const getAllMissions = catchAsyncError(async (req, res, next) => {
-//   const missions = await Mission.find({ isActive: true }).sort({ level: 1 });
-  
-//   res.status(200).json({
-//     success: true,
-//     missions
-//   });
-// });
+// ============================================
+// STUDENT CONTROLLERS
+// ============================================
 
-// // Accept a mission and invite team members
-// export const acceptMission = catchAsyncError(async (req, res, next) => {
-//   const { missionId, teamName, githubRepo, memberEmails } = req.body;
-//   const teamLeader = req.user._id;
+// @desc    Get all active missions that student can accept
+// @route   GET /api/missions/active
+// @access  Private (Student)
+export const getActiveMissions = catchAsyncError(async (req, res, next) => {
+  const userId = req.user._id;
 
-//   if (!missionId || !memberEmails || memberEmails.length === 0) {
-//     return next(new ErrorHandler('Please provide mission ID and team members', 400));
-//   }
+  // Get all active missions
+  const allMissions = await Mission.find({ 
+    status: 'active',
+    deadline: { $gte: new Date() }
+  })
+  .populate('createdBy', 'name email')
+  .sort({ createdAt: -1 });
 
-//   // Find the mission
-//   const mission = await Mission.findById(missionId);
-//   if (!mission) {
-//     return next(new ErrorHandler('Mission not found', 404));
-//   }
+  // Get student's acceptances to check status
+  const acceptances = await MissionAcceptance.find({ 
+    student: userId 
+  }).select('mission adminApproval status');
 
-//   // Validate team size
-//   const totalMembers = memberEmails.length + 1; // +1 for team leader
-//   if (totalMembers < mission.minTeamSize || totalMembers > mission.maxTeamSize) {
-//     return next(new ErrorHandler(
-//       `Team size must be between ${mission.minTeamSize} and ${mission.maxTeamSize}`,
-//       400
-//     ));
-//   }
+  // Create a map of mission statuses
+  const acceptanceMap = {};
+  acceptances.forEach(acc => {
+    acceptanceMap[acc.mission.toString()] = {
+      status: acc.status,
+      adminApproval: acc.adminApproval.status,
+      acceptanceId: acc._id
+    };
+  });
 
-//   // Check if leader already accepted this mission
-//   const existingTeamMission = await TeamMission.findOne({
-//     mission: missionId,
-//     teamLeader: teamLeader,
-//     status: { $in: ['Pending', 'Active', 'Submitted'] }
-//   });
+  // Add acceptance status to missions
+  const missionsWithStatus = allMissions.map(mission => {
+    const missionObj = mission.toObject();
+    if (acceptanceMap[mission._id.toString()]) {
+      missionObj.acceptanceStatus = acceptanceMap[mission._id.toString()];
+    }
+    return missionObj;
+  });
 
-//   if (existingTeamMission) {
-//     return next(new ErrorHandler('You have already accepted this mission', 400));
-//   }
+  res.status(200).json({
+    success: true,
+    count: missionsWithStatus.length,
+    missions: missionsWithStatus
+  });
+});
 
-//   // Prepare members array
-//   const members = memberEmails.map(email => ({
-//     email: email.toLowerCase().trim(),
-//     status: 'Pending'
-//   }));
+// @desc    Accept a mission with team details
+// @route   POST /api/missions/:missionId/accept
+// @access  Private (Student)
+export const acceptMission = catchAsyncError(async (req, res, next) => {
+  const { missionId } = req.params;
+  const { teamName, githubRepository, teamMembers } = req.body;
+  const userId = req.user._id;
 
-//   // Create team mission
-//   const teamMission = await TeamMission.create({
-//     mission: missionId,
-//     teamLeader,
-//     teamName: teamName || `Team ${mission.title}`,
-//     githubRepo,
-//     members,
-//     status: 'Pending',
-//     deadline: new Date(Date.now() + mission.deadline * 24 * 60 * 60 * 1000)
-//   });
+  // Validate required fields
+  if (!teamName) {
+    return next(new ErrorHandler('Team name is required', 400));
+  }
 
-//   // Populate mission and leader details
-//   await teamMission.populate('mission');
-//   await teamMission.populate('teamLeader', 'name email');
+  if (!teamMembers || !Array.isArray(teamMembers) || teamMembers.length < 2) {
+    return next(new ErrorHandler('At least 2 team members are required', 400));
+  }
 
-//   // Send invitation emails
-//   const invitationPromises = members.map(async (member) => {
-//     const invitationLink = `${process.env.FRONTEND_URL}/invitation/${teamMission._id}/${member.email}`;
-    
-//     const emailContent = `
-//       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #1a1a1a; color: #ffffff; border-radius: 10px;">
-//         <h1 style="color: #ef4444; text-align: center; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);">
-//           The Obsidian Circle
-//         </h1>
-        
-//         <h2 style="color: #ffffff; margin-top: 30px;">Mission Invitation!</h2>
-        
-//         <p style="color: #e5e5e5; font-size: 16px; line-height: 1.6;">
-//           <strong>${teamMission.teamLeader.name}</strong> has invited you to join their team for a new mission:
-//         </p>
-        
-//         <div style="background-color: #2a2a2a; padding: 20px; border-left: 4px solid #ef4444; margin: 20px 0;">
-//           <h3 style="color: #ef4444; margin: 0 0 10px 0;">${teamMission.mission.title}</h3>
-//           <p style="color: #9ca3af; margin: 0;">${teamMission.mission.description}</p>
-//           <p style="color: #9ca3af; margin-top: 10px; font-size: 14px;">
-//             <strong>Level:</strong> ${teamMission.mission.level} | 
-//             <strong>Difficulty:</strong> ${teamMission.mission.difficulty}
-//           </p>
-//         </div>
-        
-//         <div style="background-color: #2a2a2a; padding: 15px; border-radius: 8px; margin: 20px 0;">
-//           <p style="color: #9ca3af; margin: 0; font-size: 14px;">
-//             <strong>Team:</strong> ${teamMission.teamName}<br>
-//             <strong>Team Leader:</strong> ${teamMission.teamLeader.name}<br>
-//             ${githubRepo ? `<strong>GitHub Repo:</strong> ${githubRepo}<br>` : ''}
-//             <strong>Deadline:</strong> ${new Date(teamMission.deadline).toLocaleDateString()}
-//           </p>
-//         </div>
-        
-//         <div style="text-align: center; margin: 30px 0;">
-//           <a href="${invitationLink}" 
-//              style="display: inline-block; padding: 15px 40px; background-color: #ef4444; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);">
-//             ACCEPT MISSION
-//           </a>
-//         </div>
-        
-//         <p style="color: #9ca3af; font-size: 14px; text-align: center; margin-top: 20px;">
-//           Click the button above to review and accept the invitation.<br>
-//           This invitation will expire once the mission starts or is canceled.
-//         </p>
-        
-//         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #374151; text-align: center;">
-//           <p style="color: #6b7280; font-size: 12px; margin: 0;">
-//             The Obsidian Circle - Where darkness meets code<br>
-//             This is an automated message. Please do not reply.
-//           </p>
-//         </div>
-//       </div>
-//     `;
+  // Check if mission exists and is active
+  const mission = await Mission.findById(missionId);
+  if (!mission) {
+    return next(new ErrorHandler('Mission not found', 404));
+  }
 
-//     return sendEmail({
-//       email: member.email,
-//       subject: `Mission Invitation: ${teamMission.mission.title}`,
-//       message: emailContent
-//     });
-//   });
+  if (mission.status !== 'active') {
+    return next(new ErrorHandler('This mission is not active', 400));
+  }
 
-//   try {
-//     await Promise.all(invitationPromises);
-//   } catch (error) {
-//     console.error('Error sending invitations:', error);
-//     // Don't fail the whole operation if emails fail
-//   }
+  // Check if deadline has passed
+  if (new Date(mission.deadline) < new Date()) {
+    return next(new ErrorHandler('Mission deadline has passed', 400));
+  }
 
-//   res.status(201).json({
-//     success: true,
-//     message: 'Mission accepted! Invitations sent to team members.',
-//     teamMission
-//   });
-// });
+  // Check if student already accepted this mission
+  const existingAcceptance = await MissionAcceptance.findOne({
+    mission: missionId,
+    student: userId
+  });
 
-// // Get invitation details (for the invitation page)
-// export const getInvitation = catchAsyncError(async (req, res, next) => {
-//   const { teamMissionId, email } = req.params;
+  if (existingAcceptance) {
+    return next(new ErrorHandler('You have already accepted this mission', 400));
+  }
 
-//   const teamMission = await TeamMission.findById(teamMissionId)
-//     .populate('mission')
-//     .populate('teamLeader', 'name email');
+  // Validate team size
+  const minTeamSize = mission.requirements?.minTeamSize || 2;
+  const maxTeamSize = mission.requirements?.maxTeamSize || 3;
 
-//   if (!teamMission) {
-//     return next(new ErrorHandler('Invitation not found', 404));
-//   }
+  if (teamMembers.length < minTeamSize) {
+    return next(new ErrorHandler(`Team must have at least ${minTeamSize} members`, 400));
+  }
 
-//   // Find member in the team
-//   const member = teamMission.members.find(m => m.email === email.toLowerCase());
-//   if (!member) {
-//     return next(new ErrorHandler('You are not invited to this mission', 403));
-//   }
+  if (teamMembers.length > maxTeamSize) {
+    return next(new ErrorHandler(`Team cannot exceed ${maxTeamSize} members`, 400));
+  }
 
-//   if (member.status !== 'Pending') {
-//     return next(new ErrorHandler(`You have already ${member.status.toLowerCase()} this invitation`, 400));
-//   }
+  // Validate each team member has required fields
+  for (let i = 0; i < teamMembers.length; i++) {
+    const member = teamMembers[i];
+    if (!member.name || !member.rollNumber || !member.branch || !member.githubId) {
+      return next(new ErrorHandler(`Team member ${i + 1} is missing required information`, 400));
+    }
+  }
 
-//   // Check if mission is still pending
-//   if (teamMission.status !== 'Pending') {
-//     return next(new ErrorHandler('This mission has already started', 400));
-//   }
+  // Create mission acceptance
+  const acceptance = await MissionAcceptance.create({
+    mission: missionId,
+    student: userId,
+    teamName,
+    githubRepository: githubRepository || '',
+    teamMembers,
+    status: 'pending',
+    adminApproval: {
+      status: 'pending'
+    }
+  });
 
-//   res.status(200).json({
-//     success: true,
-//     teamMission,
-//     memberEmail: email
-//   });
-// });
+  // Populate the mission details
+  await acceptance.populate('mission', 'title briefing level deadline expectedSkills');
+  await acceptance.populate('student', 'name email');
 
-// // Accept or reject invitation
-// export const respondToInvitation = catchAsyncError(async (req, res, next) => {
-//   const { teamMissionId, email, response } = req.body; // response: 'accept' or 'reject'
+  res.status(201).json({
+    success: true,
+    message: 'Mission accepted successfully! Waiting for admin approval.',
+    acceptance
+  });
+});
 
-//   if (!['accept', 'reject'].includes(response)) {
-//     return next(new ErrorHandler('Invalid response', 400));
-//   }
+// @desc    Get student's accepted missions (for "Manage Teams" section)
+// @route   GET /api/missions/my-missions
+// @access  Private (Student)
+export const getMyMissions = catchAsyncError(async (req, res, next) => {
+  const userId = req.user._id;
 
-//   const teamMission = await TeamMission.findById(teamMissionId)
-//     .populate('mission')
-//     .populate('teamLeader', 'name email');
+  const acceptances = await MissionAcceptance.find({ 
+    student: userId 
+  })
+  .populate('mission', 'title briefing description level deadline expectedSkills deliverables')
+  .populate('student', 'name email')
+  .populate('adminApproval.approvedBy', 'name')
+  .sort({ acceptedAt: -1 });
 
-//   if (!teamMission) {
-//     return next(new ErrorHandler('Invitation not found', 404));
-//   }
+  res.status(200).json({
+    success: true,
+    count: acceptances.length,
+    acceptances
+  });
+});
 
-//   // Find member
-//   const memberIndex = teamMission.members.findIndex(m => m.email === email.toLowerCase());
-//   if (memberIndex === -1) {
-//     return next(new ErrorHandler('You are not invited to this mission', 403));
-//   }
+// @desc    Update team details (before admin approval)
+// @route   PUT /api/missions/acceptance/:acceptanceId/team
+// @access  Private (Student)
+export const updateTeamDetails = catchAsyncError(async (req, res, next) => {
+  const { acceptanceId } = req.params;
+  const { teamName, githubRepository, teamMembers } = req.body;
+  const userId = req.user._id;
 
-//   const member = teamMission.members[memberIndex];
-//   if (member.status !== 'Pending') {
-//     return next(new ErrorHandler(`You have already ${member.status.toLowerCase()} this invitation`, 400));
-//   }
+  const acceptance = await MissionAcceptance.findById(acceptanceId)
+    .populate('mission');
 
-//   // Update member status
-//   teamMission.members[memberIndex].status = response === 'accept' ? 'Accepted' : 'Rejected';
-//   teamMission.members[memberIndex].respondedAt = Date.now();
+  if (!acceptance) {
+    return next(new ErrorHandler('Mission acceptance not found', 404));
+  }
 
-//   // If user is logged in, link their user ID
-//   if (req.user) {
-//     teamMission.members[memberIndex].user = req.user._id;
-//   }
+  // Check ownership
+  if (acceptance.student.toString() !== userId.toString()) {
+    return next(new ErrorHandler('Not authorized to update this team', 403));
+  }
 
-//   await teamMission.save();
+  // Don't allow updates if already approved
+  if (acceptance.adminApproval.status === 'approved') {
+    return next(new ErrorHandler('Cannot update team details after admin approval', 400));
+  }
 
-//   // Check if anyone rejected - cancel mission
-//   if (teamMission.checkAnyRejected()) {
-//     teamMission.status = 'Failed';
-//     await teamMission.save();
+  // Validate team members if provided
+  if (teamMembers) {
+    const minTeamSize = acceptance.mission.requirements?.minTeamSize || 2;
+    const maxTeamSize = acceptance.mission.requirements?.maxTeamSize || 3;
 
-//     // Notify team leader
-//     await sendEmail({
-//       email: teamMission.teamLeader.email,
-//       subject: `Mission Cancelled: ${teamMission.mission.title}`,
-//       message: `Unfortunately, ${email} has rejected the invitation. The mission has been cancelled.`
-//     });
+    if (teamMembers.length < minTeamSize || teamMembers.length > maxTeamSize) {
+      return next(new ErrorHandler(`Team must have ${minTeamSize}-${maxTeamSize} members`, 400));
+    }
 
-//     return res.status(200).json({
-//       success: true,
-//       message: 'Invitation rejected. Mission cancelled.',
-//       status: 'rejected'
-//     });
-//   }
+    acceptance.teamMembers = teamMembers;
+  }
 
-//   // Check if all accepted - activate mission
-//   if (teamMission.checkAllAccepted()) {
-//     await teamMission.save();
+  // Update fields
+  if (teamName) acceptance.teamName = teamName;
+  if (githubRepository !== undefined) acceptance.githubRepository = githubRepository;
 
-//     // Notify all team members
-//     const allEmails = [teamMission.teamLeader.email, ...teamMission.members.map(m => m.email)];
-    
-//     await Promise.all(allEmails.map(email => 
-//       sendEmail({
-//         email,
-//         subject: `Mission Active: ${teamMission.mission.title}`,
-//         message: `All team members have accepted! The mission is now active. Good luck!`
-//       })
-//     ));
+  await acceptance.save();
+  await acceptance.populate('mission', 'title briefing level deadline');
 
-//     return res.status(200).json({
-//       success: true,
-//       message: 'All members accepted! Mission is now active.',
-//       status: 'active',
-//       teamMission
-//     });
-//   }
+  res.status(200).json({
+    success: true,
+    message: 'Team details updated successfully',
+    acceptance
+  });
+});
 
-//   res.status(200).json({
-//     success: true,
-//     message: response === 'accept' ? 'Invitation accepted! Waiting for other members.' : 'Invitation rejected.',
-//     status: response === 'accept' ? 'accepted' : 'rejected'
-//   });
-// });
+// @desc    Submit mission for admin approval
+// @route   POST /api/missions/acceptance/:acceptanceId/submit-approval
+// @access  Private (Student)
+export const submitForApproval = catchAsyncError(async (req, res, next) => {
+  const { acceptanceId } = req.params;
+  const userId = req.user._id;
 
-// // Get user's team missions
-// export const getMyTeamMissions = catchAsyncError(async (req, res, next) => {
-//   const userId = req.user._id;
-//   const userEmail = req.user.email;
+  const acceptance = await MissionAcceptance.findById(acceptanceId)
+    .populate('mission', 'requirements');
 
-//   // Find missions where user is leader OR member
-//   const teamMissions = await TeamMission.find({
-//     $or: [
-//       { teamLeader: userId },
-//       { 'members.user': userId },
-//       { 'members.email': userEmail }
-//     ],
-//     status: { $in: ['Pending', 'Active', 'Submitted'] }
-//   })
-//     .populate('mission')
-//     .populate('teamLeader', 'name email')
-//     .populate('members.user', 'name email')
-//     .sort({ createdAt: -1 });
+  if (!acceptance) {
+    return next(new ErrorHandler('Mission acceptance not found', 404));
+  }
 
-//   res.status(200).json({
-//     success: true,
-//     teamMissions
-//   });
-// });
+  // Check ownership
+  if (acceptance.student.toString() !== userId.toString()) {
+    return next(new ErrorHandler('Not authorized', 403));
+  }
 
-// // Get all assigned tasks (where user is a member and mission is active)
-// export const getAssignedTasks = catchAsyncError(async (req, res, next) => {
-//   const userId = req.user._id;
-//   const userEmail = req.user.email;
+  // Check if already submitted or approved
+  if (acceptance.adminApproval.status === 'approved') {
+    return next(new ErrorHandler('This mission has already been approved', 400));
+  }
 
-//   const assignedMissions = await TeamMission.find({
-//     $or: [
-//       { 'members.user': userId },
-//       { 'members.email': userEmail }
-//     ],
-//     status: 'Active'
-//   })
-//     .populate('mission')
-//     .populate('teamLeader', 'name email')
-//     .sort({ deadline: 1 });
+  // Update to in-progress after admin approval
+  acceptance.status = 'pending'; // Stays pending until admin approves
+  await acceptance.save();
 
-//   res.status(200).json({
-//     success: true,
-//     assignedMissions
-//   });
-// });
+  res.status(200).json({
+    success: true,
+    message: 'Mission is pending admin approval',
+    acceptance
+  });
+});
+
+// @desc    Upload evidence/media for mission
+// @route   POST /api/missions/acceptance/:acceptanceId/upload
+// @access  Private (Student)
+export const uploadEvidence = catchAsyncError(async (req, res, next) => {
+  const { acceptanceId } = req.params;
+  const { evidenceUrl } = req.body;
+  const userId = req.user._id;
+
+  if (!evidenceUrl) {
+    return next(new ErrorHandler('Evidence URL is required', 400));
+  }
+
+  const acceptance = await MissionAcceptance.findById(acceptanceId);
+
+  if (!acceptance) {
+    return next(new ErrorHandler('Mission acceptance not found', 404));
+  }
+
+  // Check ownership
+  if (acceptance.student.toString() !== userId.toString()) {
+    return next(new ErrorHandler('Not authorized', 403));
+  }
+
+  // Can only upload if approved
+  if (acceptance.adminApproval.status !== 'approved') {
+    return next(new ErrorHandler('Can only upload evidence after admin approval', 400));
+  }
+
+  // Add evidence URL
+  acceptance.submission.evidence.push(evidenceUrl);
+  await acceptance.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Evidence uploaded successfully',
+    acceptance
+  });
+});
+
+// ============================================
+// ADMIN/MENTOR CONTROLLERS
+// ============================================
+
+// @desc    Create new mission
+// @route   POST /api/missions
+// @access  Private (Admin/Mentor)
+export const createMission = catchAsyncError(async (req, res, next) => {
+  const { 
+    title, 
+    briefing, 
+    description, 
+    level, 
+    deadline, 
+    expectedSkills, 
+    requirements, 
+    deliverables, 
+    gradingRubric 
+  } = req.body;
+  const userId = req.user._id;
+
+  // Validate required fields
+  if (!title || !briefing || !level || !deadline) {
+    return next(new ErrorHandler('Please provide all required fields', 400));
+  }
+
+  const mission = await Mission.create({
+    title,
+    briefing,
+    description: description || '',
+    level,
+    deadline,
+    expectedSkills: expectedSkills || [],
+    requirements: requirements || { minTeamSize: 2, maxTeamSize: 3 },
+    deliverables: deliverables || [],
+    gradingRubric: gradingRubric || '',
+    createdBy: userId,
+    status: 'active'
+  });
+
+  await mission.populate('createdBy', 'name email');
+
+  res.status(201).json({
+    success: true,
+    message: 'Mission created successfully',
+    mission
+  });
+});
+
+// @desc    Get all missions (admin view)
+// @route   GET /api/missions/all
+// @access  Private (Admin/Mentor)
+export const getAllMissions = catchAsyncError(async (req, res, next) => {
+  const missions = await Mission.find()
+    .populate('createdBy', 'name email')
+    .sort({ createdAt: -1 });
+
+  // Get acceptance counts for each mission
+  const missionIds = missions.map(m => m._id);
+  const acceptanceCounts = await MissionAcceptance.aggregate([
+    { $match: { mission: { $in: missionIds } } },
+    { $group: { _id: '$mission', count: { $sum: 1 } } }
+  ]);
+
+  const countMap = {};
+  acceptanceCounts.forEach(item => {
+    countMap[item._id.toString()] = item.count;
+  });
+
+  const missionsWithCounts = missions.map(mission => {
+    const missionObj = mission.toObject();
+    missionObj.acceptanceCount = countMap[mission._id.toString()] || 0;
+    return missionObj;
+  });
+
+  res.status(200).json({
+    success: true,
+    count: missionsWithCounts.length,
+    missions: missionsWithCounts
+  });
+});
+
+// @desc    Get all mission acceptances
+// @route   GET /api/missions/acceptances
+// @access  Private (Admin/Mentor)
+export const getAllAcceptances = catchAsyncError(async (req, res, next) => {
+  const acceptances = await MissionAcceptance.find()
+    .populate('mission', 'title level deadline')
+    .populate('student', 'name email rollNumber')
+    .populate('adminApproval.approvedBy', 'name')
+    .sort({ acceptedAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: acceptances.length,
+    acceptances
+  });
+});
+
+// @desc    Approve or reject mission acceptance
+// @route   POST /api/missions/acceptance/:acceptanceId/approve
+// @access  Private (Admin/Mentor)
+export const approveMissionAcceptance = catchAsyncError(async (req, res, next) => {
+  const { acceptanceId } = req.params;
+  const { approved, rejectionReason } = req.body;
+  const userId = req.user._id;
+
+  const acceptance = await MissionAcceptance.findById(acceptanceId)
+    .populate('mission', 'title')
+    .populate('student', 'name email');
+
+  if (!acceptance) {
+    return next(new ErrorHandler('Mission acceptance not found', 404));
+  }
+
+  if (acceptance.adminApproval.status !== 'pending') {
+    return next(new ErrorHandler('This acceptance has already been processed', 400));
+  }
+
+  if (approved) {
+    acceptance.adminApproval.status = 'approved';
+    acceptance.adminApproval.approvedBy = userId;
+    acceptance.adminApproval.approvedAt = Date.now();
+    acceptance.status = 'in-progress';
+  } else {
+    acceptance.adminApproval.status = 'rejected';
+    acceptance.adminApproval.approvedBy = userId;
+    acceptance.adminApproval.approvedAt = Date.now();
+    acceptance.adminApproval.rejectionReason = rejectionReason || 'No reason provided';
+    acceptance.status = 'rejected';
+  }
+
+  await acceptance.save();
+
+  res.status(200).json({
+    success: true,
+    message: approved ? 'Mission approved successfully' : 'Mission rejected',
+    acceptance
+  });
+});
+
+// @desc    Delete a mission
+// @route   DELETE /api/missions/:missionId
+// @access  Private (Admin/Mentor)
+export const deleteMission = catchAsyncError(async (req, res, next) => {
+  const { missionId } = req.params;
+
+  const mission = await Mission.findById(missionId);
+
+  if (!mission) {
+    return next(new ErrorHandler('Mission not found', 404));
+  }
+
+  // Check if there are acceptances
+  const acceptanceCount = await MissionAcceptance.countDocuments({ mission: missionId });
+
+  if (acceptanceCount > 0) {
+    return next(new ErrorHandler(`Cannot delete mission. ${acceptanceCount} team(s) have accepted this mission.`, 400));
+  }
+
+  await mission.deleteOne();
+
+  res.status(200).json({
+    success: true,
+    message: 'Mission deleted successfully'
+  });
+});

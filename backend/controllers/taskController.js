@@ -2,6 +2,9 @@ import { catchAsyncError } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/error.js";
 import { Task } from "../models/TaskModel.js";
 
+
+
+
 // @desc    Create a new Task (Mission)
 // @route   POST /api/v1/task/new
 // @access  Private (Admin, Alumni)
@@ -106,11 +109,6 @@ export const deleteTask = catchAsyncError(async (req, res, next) => {
 import { TeamProgress } from "../models/TeamProgressModel.js"; 
 // ... existing imports
 
-// ---------------- ASSIGNMENT LOGIC ----------------
-
-// @desc    Assign a Team to a Task
-// @route   POST /api/v1/task/assign
-// @access  Private (Admin, Alumni)
 export const assignTeamToTask = catchAsyncError(async (req, res, next) => {
   const { teamId, taskId } = req.body;
 
@@ -137,9 +135,6 @@ export const assignTeamToTask = catchAsyncError(async (req, res, next) => {
   });
 });
 
-// @desc    Get All Mission Assignments
-// @route   GET /api/v1/task/assignments/all
-// @access  Private (Admin, Alumni)
 export const getAllAssignments = catchAsyncError(async (req, res, next) => {
   const assignments = await TeamProgress.find()
     .populate("team", "name leader repoLink") // Get team details

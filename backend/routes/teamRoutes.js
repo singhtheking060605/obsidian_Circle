@@ -1,42 +1,48 @@
-
-// ADD THESE ROUTES TO YOUR EXISTING teamRoutes.js
-
-import express from 'express';
-import { 
-  createTeam, 
-  joinTeam, 
-  getMyTeam, 
-  updateTeam, 
-  generateContent,
-  requestApproval,        // ✅ NEW
-  getApprovalStatus,      // ✅ NEW
-  cancelApprovalRequest ,
-   getAllTeams  // ✅ NEW
-} from '../controllers/teamController.js';
-// import { isAuthenticated } from '../middlewares/auth.js';
+// routes/teamRoutes.js - FINAL CORRECTED VERSION
 
 import express from "express";
-// import { getMyTeam, createTeam, updateTeam, joinTeam, generateContent } from "../controllers/teamController.js";
-import { isAuthenticated, authorizeRoles } from "../middlewares/auth.js"; // Ensure authorizeRoles is imported
-
+import { isAuthenticated, authorizeRoles } from "../middlewares/auth.js";
+import {
+  generateContent,
+  getMyTeam, // This is the controller function
+  createTeam,
+  joinTeam,
+  updateTeam,
+  getAllTeams,
+  requestApproval,
+  getApprovalStatus,
+  cancelApprovalRequest,
+  
+  acceptMission,
+  getMyTeamMissions,
+  getAvailableTasks,
+  updateTeamMember,
+  submitMissionProgress,
+} from "../controllers/teamController.js";
 
 const router = express.Router();
 
-// Existing routes
-router.post('/create', isAuthenticated, createTeam);
-router.put('/join', isAuthenticated, joinTeam);
-router.get('/me', isAuthenticated, getMyTeam);
-router.put('/update', isAuthenticated, updateTeam);
-router.post('/generate-description', isAuthenticated, generateContent);
+// ===== EXISTING ROUTES (FIXED /me ENDPOINT) =====
 
+router.post("/generate-content", isAuthenticated, generateContent);
+// 💡 FIX: Change /my-team back to /me to match the frontend request:
+router.get("/me", isAuthenticated, getMyTeam); 
+router.post("/create", isAuthenticated, createTeam);
+router.post("/join", isAuthenticated, joinTeam);
+router.put("/update", isAuthenticated, updateTeam);
+router.get("/all", isAuthenticated, getAllTeams);
 
-// ✅ NEW: Approval routes
-router.post('/request-approval', isAuthenticated, requestApproval);
-router.get('/approval-status', isAuthenticated, getApprovalStatus);
-router.delete('/cancel-approval', isAuthenticated, cancelApprovalRequest);
+// Approval routes
+router.post("/request-approval", isAuthenticated, requestApproval);
+router.get("/approval-status", isAuthenticated, getApprovalStatus);
+router.post("/cancel-approval", isAuthenticated, cancelApprovalRequest);
 
-// Admin Route
-router.get("/all", isAuthenticated, authorizeRoles("Admin", "Alumni"), getAllTeams);
+// ===== NEW ROUTES =====
 
+router.get("/available-tasks", isAuthenticated, getAvailableTasks);
+router.post("/accept-mission", isAuthenticated, acceptMission);
+router.get("/my-missions", isAuthenticated, getMyTeamMissions);
+router.put("/update-member", isAuthenticated, updateTeamMember);
+router.post("/submit-progress", isAuthenticated, submitMissionProgress);
 
 export default router;

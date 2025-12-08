@@ -1,7 +1,14 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 // Layout
+
+import ViewAllTasks from './components/viewalltasks.jsx';
+import AcceptMission from './components/acceptmission.jsx';
+import ManageTeam from './components/manageteam.jsx';
+
+
+
 import DashboardLayout from './layout/DashboardLayout.jsx';
 
 // Public Pages
@@ -12,9 +19,6 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 
 
-// Protected Pages
-// ✅ FIXED: Make sure the import matches the EXACT file name
-// import StudentDashboard from './pages/StudentDashboard.jsx';
 import AcceptInvitationPage from './pages/AcceptInvitationPage.jsx';
 
 // Student Components & Pages
@@ -43,6 +47,25 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/password/reset/:token" element={<ResetPasswordPage />} />
         
+
+ {/* View all available missions/tasks */}
+        <Route path="/all-missions" element={<ViewAllTasks />} />
+        <Route path="/missions" element={<ViewAllTasks />} />
+        
+        {/* Accept mission form */}
+        <Route path="/accept-mission/:taskId" element={<AcceptMission />} />
+        
+        {/* Manage team with missions */}
+        <Route path="/manage-team" element={<ManageTeam />} />
+        <Route path="/my-team" element={<ManageTeam />} />
+
+
+
+
+
+
+
+
         {/* Accept Team Invitation - Public Route */}
         <Route path="/accept-invitation/:token" element={<AcceptInvitationPage />} />
 
