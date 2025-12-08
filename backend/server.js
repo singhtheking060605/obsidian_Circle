@@ -6,39 +6,37 @@ import http from "http";
 import { Server } from "socket.io";
 import { Message } from "./models/MessageModel.js"; 
 
-// Load from config.env in current directory
 dotenv.config({ path: './config.env' });
 
-const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
-
-// Connect to database
 connectDatabase();
 
 const PORT = process.env.PORT || 5000;
 
-// 1. Create HTTP server from Express app
 const server = http.createServer(app);
 
-// 2. Initialize Socket.io
 const io = new Server(server, {
   cors: {
     origin: process.env.CORS_ORIGIN || "http://localhost:5173",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT"],
     credentials: true,
   },
 });
 
-// 3. Socket Logic
 io.on("connection", (socket) => {
   console.log(`User Connected: ${socket.id}`);
 
-  // Join a specific chat session room
-  socket.on("join_room", (sessionId) => {
-    socket.join(sessionId);
-    console.log(`User ${socket.id} joined room: ${sessionId}`);
+  // 1. SETUP: User joins their own room (Essential for notifications)
+  socket.on("setup", (userId) => {
+    socket.join(userId); 
+    console.log(`User ${userId} joined their personal room`);
   });
 
-  // Handle sending messages
+  // 2. CHAT: Join specific chat session
+  socket.on("join_room", (sessionId) => {
+    socket.join(sessionId);
+  });
+
+  // 3. CHAT: Send Message
   socket.on("send_message", async (data) => {
     try {
       await Message.create({
@@ -46,11 +44,24 @@ io.on("connection", (socket) => {
         sender: data.senderId,
         content: data.content
       });
-      
+      // Broadcast to everyone in the chat room
       io.in(data.sessionId).emit("receive_message", data);
     } catch (err) {
       console.error("Message save error:", err);
     }
+  });
+
+  // 4. NEW REQUEST: Notify Receiver
+  socket.on("send_request", (data) => {
+    // data = { receiverId, senderName, ... }
+    io.in(data.receiverId).emit("request_received", data);
+  });
+
+  // 5. ACCEPT REQUEST: Notify Sender (NEW FIX)
+  socket.on("accept_request", (data) => {
+    // data = { senderId, session }
+    // Notify the person who sent the request that it's accepted
+    io.in(data.senderId).emit("request_accepted", data);
   });
 
   socket.on("disconnect", () => {
@@ -58,9 +69,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// 4. Start Server (Only ONE listen call)
 server.listen(PORT, () => {
   console.log(` Server running on port ${PORT}`);
 });
-
-// REMOVED: app.listen(...) - This was causing the double-start error

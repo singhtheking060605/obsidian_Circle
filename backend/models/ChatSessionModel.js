@@ -1,29 +1,32 @@
 import mongoose from "mongoose";
 
 const chatSessionSchema = new mongoose.Schema({
+  // The user who initiated the request
+  sender: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
+  },
+  // The user receiving the request
+  receiver: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
+  },
+  // Optional: Context for the chat (if applicable)
   team: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Team",
-    required: true
-  },
-  student: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true
-  },
-  mentor: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    default: null // Null until a mentor accepts
+    required: false
   },
   status: {
     type: String,
-    enum: ["pending", "active", "closed"],
+    enum: ["pending", "active", "rejected", "closed"],
     default: "pending"
   },
   topic: {
     type: String,
-    default: "General Inquiry"
+    default: "General Discussion"
   },
   createdAt: {
     type: Date,
