@@ -36,3 +36,4 @@ const rubricSchema = new mongoose.Schema({
 });
 
 export const Rubric = mongoose.model('Rubric', rubricSchema);
+export default Rubric;

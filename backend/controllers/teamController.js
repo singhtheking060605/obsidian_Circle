@@ -497,7 +497,7 @@
 
 import { Team } from "../models/TeamModel.js"; 
 import { User } from "../models/userModel.js"; // CRITICAL FIX: Use exact casing of the imported file name ('userModel.js')
-import { Task } from "../models/TaskModel.js"; // CRITICAL: Ensure Task model is correctly imported
+import  Task  from "../models/TaskModel.js"; // CRITICAL: Ensure Task model is correctly imported
 import { TeamProgress } from "../models/TeamProgressModel.js"; 
 import { catchAsyncError } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/error.js";

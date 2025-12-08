@@ -1,26 +1,32 @@
-import express from "express";
-import { isAuthenticated, authorizeRoles } from "../middlewares/auth.js";
+import express from 'express';
 import { 
-    createRubric, 
-    getAllRubrics,
-    getSingleRubric,
-    updateRubric,
-    deleteRubric
-} from "../controllers/rubricController.js";
+    aiDraftReview,
+    createRubric,
+    getRubricDetails,
+    updateRubric, 
+    deleteRubric 
+} from '../controllers/rubricController.js'; 
+import { isAuthenticatedUser, authorizeRoles } from '../middlewares/auth.js'; // Assuming isAuthenticatedUser is imported here
 
 const router = express.Router();
 
-// Route for creating a new rubric
-router.route("/new").post(isAuthenticated, authorizeRoles("Admin", "Alumni"), createRubric);
+// --- Existing Routes ---
+router.route('/rubric/:id').get(getRubricDetails);
 
-// Route for fetching all rubrics
-router.route("/all").get(isAuthenticated, authorizeRoles("Admin", "Alumni"), getAllRubrics);
-
-// Routes for specific Rubric operations by ID
 router
-    .route("/:id")
-    .get(isAuthenticated, authorizeRoles("Admin", "Alumni"), getSingleRubric)
-    .put(isAuthenticated, authorizeRoles("Admin", "Alumni"), updateRubric)
-    .delete(isAuthenticated, authorizeRoles("Admin", "Alumni"), deleteRubric);
+    .route('/admin/rubric/new')
+    .post(isAuthenticatedUser, authorizeRoles('admin'), createRubric);
+
+router
+    .route('/admin/rubric/:id')
+    .put(isAuthenticatedUser, authorizeRoles('admin', 'mentor'), updateRubric)
+    .delete(isAuthenticatedUser, authorizeRoles('admin'), deleteRubric);
+
+
+// --- FEATURE 1: AI AUTO-REVIEW DRAFT Route ---
+router
+    .route('/task/:taskId/review/draft/ai')
+    .post(isAuthenticatedUser, authorizeRoles('mentor', 'admin'), aiDraftReview);
+
 
 export default router;
