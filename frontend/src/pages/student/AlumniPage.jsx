@@ -29,8 +29,17 @@ const AlumniPage = () => {
     // Socket: Real-time updates
     if (user) {
         socket.emit("setup", user._id);
-        socket.on("request_received", () => fetchNetworkStatus()); // Someone requested me
-        socket.on("request_accepted", () => fetchNetworkStatus()); // Someone accepted my request
+        
+        // Listener: Request Received
+        socket.on("request_received", (data) => {
+            // STRICT FILTER: Only refresh if it is a Connection Request
+            if (data.topic === 'Connection Request') {
+                fetchNetworkStatus();
+            }
+        });
+        
+        // Listener: Request Accepted
+        socket.on("request_accepted", () => fetchNetworkStatus());
     }
     return () => {
         socket.off("request_received");
@@ -58,7 +67,11 @@ const AlumniPage = () => {
     try {
       const { data } = await axios.get(`${API_URL}/chat/network-status`, { withCredentials: true });
       if (data.success) {
-        setInvitations(data.incoming);
+        // STRICT FILTER: Ensure we only show "Connection Request" topics in this list
+        // Note: The backend getNetworkStatus likely already filters this, but we double-check here.
+        const connectionInvites = data.incoming.filter(req => req.topic === 'Connection Request');
+        setInvitations(connectionInvites);
+        
         setSentRequests(new Set(data.sent));
         setConnections(new Set(data.connected));
       }
@@ -84,14 +97,19 @@ const AlumniPage = () => {
   const sendConnectRequest = async (targetUser) => {
     setActionLoading(targetUser._id);
     try {
+      // FORCE TOPIC TO BE 'Connection Request'
       const { data } = await axios.post(`${API_URL}/chat/request`, 
         { receiverId: targetUser._id, topic: "Connection Request" }, 
         { withCredentials: true }
       );
 
       if (data.success) {
-        socket.emit("send_request", { receiverId: targetUser._id, senderName: user.name });
-        // Optimistic Update
+        // PASS TOPIC TO SOCKET so receiver knows to update AlumniPage
+        socket.emit("send_request", { 
+            receiverId: targetUser._id, 
+            senderName: user.name,
+            topic: "Connection Request" 
+        });
         setSentRequests(prev => new Set(prev).add(targetUser._id));
       }
     } catch (error) {

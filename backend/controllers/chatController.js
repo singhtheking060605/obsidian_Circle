@@ -70,24 +70,25 @@ export const acceptRequest = catchAsyncError(async (req, res, next) => {
   res.status(200).json({ success: true, session });
 });
 
-// --- GET NETWORK STATUS (All Interactions) ---
-// This is critical for the "LinkedIn" style buttons
+// --- GET NETWORK STATUS (For Alumni Page) ---
+// Returns ONLY "Connection Request" topics for incoming
 export const getNetworkStatus = catchAsyncError(async (req, res, next) => {
   const userId = req.user._id;
 
-  // 1. Incoming Requests (To me, Pending) - Show in "Invitations"
+  // 1. Incoming Connection Requests
   const incoming = await ChatSession.find({ 
     receiver: userId, 
-    status: 'pending' 
+    status: 'pending',
+    topic: 'Connection Request' // <--- STRICT FILTER
   }).populate('sender', 'name email roles company roleTitle');
 
-  // 2. Sent Requests (From me, Pending) - Show "Pending" button
+  // 2. Sent Requests
   const sent = await ChatSession.find({ 
     sender: userId, 
     status: 'pending' 
   }).select('receiver');
 
-  // 3. Active Connections (Chat active) - Show "Message" button
+  // 3. Active Connections
   const connected = await ChatSession.find({ 
     $or: [{ sender: userId }, { receiver: userId }], 
     status: 'active' 
@@ -99,6 +100,20 @@ export const getNetworkStatus = catchAsyncError(async (req, res, next) => {
     sent: sent.map(s => s.receiver.toString()), 
     connected: connected.map(s => s.sender.toString() === userId.toString() ? s.receiver.toString() : s.sender.toString())
   });
+});
+
+// --- GET INCOMING REQUESTS (For QnA Page) ---
+// Returns ONLY NON-"Connection Request" topics
+export const getIncomingRequests = catchAsyncError(async (req, res, next) => {
+  const userId = req.user._id;
+
+  const requests = await ChatSession.find({ 
+    receiver: userId, 
+    status: 'pending',
+    topic: { $ne: 'Connection Request' } // <--- STRICT FILTER (Not connection requests)
+  }).populate('sender', 'name email roles company roleTitle');
+
+  res.status(200).json({ success: true, requests });
 });
 
 // --- GET MESSAGES (For Chat Page) ---
