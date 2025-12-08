@@ -347,3 +347,17 @@ export const getUser = catchAsyncError(async (req, res, next) => {
     user,
   });
 });
+
+export const getAllStudents = catchAsyncError(async (req, res, next) => {
+  const students = await User.find({ roles: 'Student' })
+    .select('name email avatar isAlumnus createdAt')
+    .sort({ name: 1 });
+
+  // In a real app, you would aggregate TeamProgress scores here to determine rank.
+  // For MVP, we will send the list and let the frontend mock the 'score' or display 0.
+  
+  res.status(200).json({
+    success: true,
+    students
+  });
+});

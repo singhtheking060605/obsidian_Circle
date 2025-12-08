@@ -11,6 +11,9 @@ import taskRoutes from "./routes/taskRoutes.js"; //     // <--- ADD THIS
 import rubricRoutes from "./routes/rubricRoutes.js"; // <--- ADD THIS
 import invitationRoutes from "./routes/invitationRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js"; // <--- ADD THIS
+// ... existing imports
+import referralRoutes from "./routes/referralRoutes.js"; // <--- Add Import
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +50,7 @@ app.use(cors({
 app.use("/api/auth", userRoutes);
 app.use("/api/team", teamRoutes);
 app.use("/api/task", taskRoutes); // <--- REGISTER THIS ROUTE
+app.use("/api/referral", referralRoutes); // <--- Register Route
 
 app.use("/api/invitation", invitationRoutes); // ✅ FIXED: Removed /v1
 app.use("/api/chat", chatRoutes); // <--- Add this line

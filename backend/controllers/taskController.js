@@ -1,6 +1,7 @@
 import { catchAsyncError } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/error.js";
 import { Task } from "../models/TaskModel.js";
+import { TeamProgress } from "../models/TeamProgressModel.js"; 
 
 // @desc    Create a new Task (Mission)
 // @route   POST /api/v1/task/new
@@ -42,8 +43,9 @@ export const createTask = catchAsyncError(async (req, res, next) => {
   });
 });
 
-// ... (Keep getAllTasks, getSingleTask, updateTask, deleteTask as they were) ...
-// Ensure updateTask also allows updating these new fields if passed in req.body
+// @desc    Get All Tasks
+// @route   GET /api/v1/task/all
+// @access  Public (Authenticated)
 export const getAllTasks = catchAsyncError(async (req, res, next) => {
   const tasks = await Task.find()
     .populate('rubric', 'title') // Populate rubric title for display
@@ -56,6 +58,9 @@ export const getAllTasks = catchAsyncError(async (req, res, next) => {
   });
 });
 
+// @desc    Get Single Task
+// @route   GET /api/v1/task/:id
+// @access  Public (Authenticated)
 export const getSingleTask = catchAsyncError(async (req, res, next) => {
   const task = await Task.findById(req.params.id).populate('rubric');
 
@@ -69,6 +74,9 @@ export const getSingleTask = catchAsyncError(async (req, res, next) => {
   });
 });
 
+// @desc    Update Task
+// @route   PUT /api/v1/task/:id
+// @access  Private (Admin, Alumni)
 export const updateTask = catchAsyncError(async (req, res, next) => {
   let task = await Task.findById(req.params.id);
 
@@ -89,6 +97,9 @@ export const updateTask = catchAsyncError(async (req, res, next) => {
   });
 });
 
+// @desc    Delete Task
+// @route   DELETE /api/v1/task/:id
+// @access  Private (Admin, Alumni)
 export const deleteTask = catchAsyncError(async (req, res, next) => {
   const task = await Task.findById(req.params.id);
 
@@ -103,8 +114,6 @@ export const deleteTask = catchAsyncError(async (req, res, next) => {
     message: "Task deleted successfully.",
   });
 });
-import { TeamProgress } from "../models/TeamProgressModel.js"; 
-// ... existing imports
 
 // ---------------- ASSIGNMENT LOGIC ----------------
 
@@ -149,5 +158,36 @@ export const getAllAssignments = catchAsyncError(async (req, res, next) => {
   res.status(200).json({
     success: true,
     assignments
+  });
+});
+
+// ---------------- EVALUATION LOGIC (NEW) ----------------
+
+// @desc    Evaluate a submission (Score & Feedback)
+// @route   PUT /api/task/evaluate/:id
+// @access  Private (Admin, Alumni)
+export const evaluateSubmission = catchAsyncError(async (req, res, next) => {
+  const { score, feedback, status } = req.body;
+  const progressId = req.params.id; // This is the ID of the TeamProgress document
+
+  let assignment = await TeamProgress.findById(progressId);
+
+  if (!assignment) {
+    return next(new ErrorHandler("Submission record not found.", 404));
+  }
+
+  // Update fields if provided
+  if (score !== undefined) assignment.score = score;
+  if (feedback !== undefined) assignment.feedback = feedback;
+  if (status !== undefined) assignment.status = status;
+  
+  assignment.lastUpdated = Date.now();
+
+  await assignment.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Evaluation submitted successfully.",
+    assignment
   });
 });

@@ -1,26 +1,27 @@
 import express from "express";
-import {
-  register,
-  verifyOTP,
-  login,
-  logout,
-  forgotPassword,
-  resetPassword,
-  getUser,
+import { 
+  register, 
+  verifyOTP, 
+  login, 
+  logout, 
+  forgotPassword, 
+  resetPassword, 
+  getUser, 
+  getAllStudents // <--- Import this
 } from "../controllers/usercontroller.js";
-import { isAuthenticated } from "../middlewares/auth.js";
+import { isAuthenticated, authorizeRoles } from "../middlewares/auth.js";
 
 const router = express.Router();
 
-// Public routes
 router.post("/register", register);
 router.post("/verify-otp", verifyOTP);
 router.post("/login", login);
-router.post("/forgot-password", forgotPassword);
+router.get("/logout", logout);
+router.post("/password/forgot", forgotPassword);
 router.put("/password/reset/:token", resetPassword);
-
-// Protected routes
-router.get("/logout", isAuthenticated, logout);
 router.get("/me", isAuthenticated, getUser);
+
+// New Route for Student Directory
+router.get("/students", isAuthenticated, authorizeRoles("Admin", "Mentor", "Alumni"), getAllStudents);
 
 export default router;
