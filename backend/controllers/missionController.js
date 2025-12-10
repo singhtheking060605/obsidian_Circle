@@ -4,6 +4,8 @@ import { MissionAcceptance } from '../models/MissionAcceptanceModel.js'; // New 
 import { catchAsyncError } from '../middlewares/catchAsyncError.js';
 import ErrorHandler from '../middlewares/error.js';
 
+import { TeamProgress } from "../models/TeamProgressModel.js";
+
 // ============================================
 // STUDENT CONTROLLERS
 // ============================================
@@ -255,6 +257,7 @@ export const approveMissionAcceptance = catchAsyncError(async (req, res, next) =
 
 // @desc    Delete a mission
 // @route   DELETE /api/missions/:missionId
+
 // @access  Private (Admin/Mentor)
 export const deleteMission = catchAsyncError(async (req, res, next) => {
   const { missionId } = req.params;
@@ -277,5 +280,75 @@ export const deleteMission = catchAsyncError(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: 'Mission deleted successfully'
+  });
+});
+
+
+// @desc    Get pending mission requests for the logged-in Mentor
+// @route   GET /api/missions/requests
+// @access  Private (Mentor)
+export const getMissionRequests = catchAsyncError(async (req, res, next) => {
+  // 1. Find all tasks created by this mentor
+  const myTasks = await Task.find({ createdBy: req.user._id }).select('_id');
+  const myTaskIds = myTasks.map(t => t._id);
+
+  // 2. Find TeamProgress entries for these tasks with 'Pending' status
+  const requests = await TeamProgress.find({
+    task: { $in: myTaskIds },
+    status: 'Pending'
+  })
+  .populate('team', 'name leader members repoLink') // Get team details
+  .populate('task', 'title deadline expectedSkills') // Get mission details
+  .populate({
+     path: 'team',
+     populate: { path: 'leader', select: 'name email' }
+  });
+
+  res.status(200).json({
+    success: true,
+    count: requests.length,
+    requests
+  });
+});
+
+// @desc    Approve or Reject a Team's Application
+// @route   PUT /api/missions/request/:requestId/decide
+// @access  Private (Mentor)
+export const decideMissionRequest = catchAsyncError(async (req, res, next) => {
+  const { decision } = req.body; // 'approve' or 'reject'
+  const { requestId } = req.params;
+
+  const application = await TeamProgress.findById(requestId).populate('task');
+
+  if (!application) {
+    return next(new ErrorHandler("Application not found", 404));
+  }
+
+  // Security check: Ensure the mentor owns the task
+  if (application.task.createdBy.toString() !== req.user._id.toString()) {
+    return next(new ErrorHandler("Not authorized to manage this mission.", 403));
+  }
+
+  if (decision === 'approve') {
+    application.status = 'Assigned'; // Moves to "Active" state
+    // Optional: Reject other pending teams for this task if it's exclusive
+  } else if (decision === 'reject') {
+    // You can either delete the entry or set status to 'Rejected' (if enum allows)
+    // For now, let's delete it so they can try again or just remove the clutter
+    await application.deleteOne();
+    return res.status(200).json({
+      success: true,
+      message: "Application rejected and removed."
+    });
+  } else {
+    return next(new ErrorHandler("Invalid decision", 400));
+  }
+
+  await application.save();
+
+  res.status(200).json({
+    success: true,
+    message: `Team ${decision}d for mission successfully.`,
+    application
   });
 });

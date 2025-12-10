@@ -16,6 +16,10 @@ import {
   deleteMission
 } from '../controllers/missionController.js';
 
+
+import { getMissionRequests, decideMissionRequest } from "../controllers/missionController.js";
+// ...
+
 // STUDENT ROUTES
 router.get('/active', protect, getActiveMissions);
 router.post('/:missionId/accept', protect, acceptMission);
@@ -31,4 +35,6 @@ router.get('/acceptances', protect, authorize('Mentor'), getAllAcceptances);
 router.post('/acceptance/:acceptanceId/approve', protect, authorize('Mentor'), approveMissionAcceptance);
 router.delete('/:missionId', protect, authorize('Mentor'), deleteMission);
 
+router.get("/requests", protect, authorize('Mentor'), getMissionRequests);
+router.put("/request/:requestId/decide", protect, authorize('Mentor'), decideMissionRequest);
 export default router;

@@ -1,277 +1,279 @@
-// frontend/src/pages/admin/AdminEvaluate.jsx (FINAL INTEGRATED CODE)
-
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown'; 
-import remarkGfm from 'remark-gfm'; 
-
-import { useAuth, authenticatedAxios } from '../../context/AuthContext.jsx'; 
-import TaskDetails from '../../components/TaskDetails.jsx'; 
-import ReviewForm from '../../components/ReviewForm.jsx'; 
+import axios from 'axios';
+import { AlertCircle, CheckCircle, FileText, Github, ExternalLink, Calculator, Save } from 'lucide-react';
 
 const AdminEvaluate = () => {
-    const { taskId } = useParams();
-    const { user } = useAuth();
+  const [submissions, setSubmissions] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [rubric, setRubric] = useState(null);
+  const [loading, setLoading] = useState(false);
+  
+  // Evaluation State
+  const [scores, setScores] = useState({});
+  const [feedback, setFeedback] = useState('');
+  const [totalScore, setTotalScore] = useState(0);
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+
+  // 1. Fetch Submissions (Assigned/Submitted Tasks)
+  const fetchSubmissions = async () => {
+    try {
+      setLoading(true);
+      const { data } = await axios.get(`${API_URL}/task/assignments/all`, { withCredentials: true });
+      if (data.success) {
+        // Filter for items that are ready for review or already graded
+        const reviewable = data.assignments.filter(a => 
+          ['Submitted', 'In Progress', 'Graded'].includes(a.status)
+        );
+        setSubmissions(reviewable);
+      }
+    } catch (error) {
+      console.error("Failed to fetch intel:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSubmissions();
+  }, []);
+
+  // 2. Fetch Full Task & Rubric Details when a submission is selected
+  const handleSelectSubmission = async (item) => {
+    setSelectedItem(item);
+    setScores({});
+    setFeedback(item.feedback || '');
+    setTotalScore(item.score || 0);
     
-    // Core data states
-    const [taskData, setTaskData] = useState(null);
-    const [rubricData, setRubricData] = useState(null); 
-    const [reviewData, setReviewData] = useState(null); 
-    
-    // UI states 
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [isDrafting, setIsDrafting] = useState(false); 
-    const [isCheckingPlagiarism, setIsCheckingPlagiarism] = useState(false); 
-    const [aiDraft, setAiDraft] = useState(null); 
-    
-
-    // --- Data Fetching Logic ---
-    const fetchEvaluationData = async () => {
-        setLoading(true);
-        setError(null);
-        if (!user || !user.id) {
-            setLoading(false);
-            return;
-        }
-
-        try {
-            // 1. Fetch Task Data 
-            const taskRes = await authenticatedAxios.get(`/task/${taskId}`);
-            const task = taskRes.data.task;
-            setTaskData(task);
-
-            // 2. Fetch Rubric Data (Using Task ID to get rubric ID)
-            if (task.rubric) {
-                // Assuming task.rubric is the ID of the rubric document
-                const rubricRes = await authenticatedAxios.get(`/rubric/${task.rubric}`); 
-                setRubricData(rubricRes.data.rubric);
-            }
-
-            // 3. Fetch Existing Review Data (Assuming a route exists to fetch mentor's current review/draft)
-            // NOTE: This endpoint may need to be implemented on the backend if it doesn't exist.
-            const reviewRes = await authenticatedAxios.get(`/review/task/${taskId}/mentor/${user.id}`);
-            const fetchedReview = reviewRes.data.review;
-            setReviewData(fetchedReview);
-            
-            // Set initial AI Draft if it exists
-            if (fetchedReview && fetchedReview.aiDraftGeneratedAt) {
-                setAiDraft({
-                    scores: fetchedReview.aiDraftScores,
-                    feedback: fetchedReview.aiDraftFeedback,
-                    generatedAt: fetchedReview.aiDraftGeneratedAt
-                });
-            }
-            
-        } catch (err) {
-            console.error("Error fetching evaluation data:", err);
-            // Handle expected 404 for missing review gracefully
-            if (err.response?.status !== 404) {
-                 setError(err.response?.data?.message || 'Failed to load evaluation data.');
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchEvaluationData();
-    }, [taskId, user?.id]);
-
-
-    // --- FEATURE 1 Handler (AI Review Draft) ---
-
-    const handleGenerateAiDraft = async () => {
-        setIsDrafting(true);
-        setError(null);
+    try {
+      // We need the full task details to get the Rubric ID/Data
+      const { data } = await axios.get(`${API_URL}/task/${item.task._id}`, { withCredentials: true });
+      
+      if (data.success && data.task.rubric) {
+        setRubric(data.task.rubric);
         
-        // Ensure submission content exists before calling AI
-        if (!taskData?.submission || taskData.submission.trim() === '') {
-            setError('Cannot run AI Draft: No submission content found.');
-            setIsDrafting(false);
-            return;
+        // Initialize scores if this is a fresh grading
+        if (item.status !== 'Graded') {
+            const initialScores = {};
+            data.task.rubric.criteria.forEach(c => initialScores[c.criterionName] = 0);
+            setScores(initialScores);
         }
+      } else {
+        setRubric(null);
+      }
+    } catch (error) {
+      console.error("Failed to retrieve mission protocols (rubric):", error);
+    }
+  };
 
-        try {
-            // BACKEND CALL: POST /api/rubric/task/:taskId/review/draft/ai
-            const { data } = await authenticatedAxios.post(`/rubric/task/${taskId}/review/draft/ai`);
-            
-            setAiDraft(data.aiDraft);
-            alert('AI draft generated successfully!');
-            
-        } catch (err) {
-            console.error('Error generating AI draft:', err);
-            setError(err.response?.data?.message || 'Failed to generate AI draft review.');
-        } finally {
-            setIsDrafting(false);
-        }
-    };
+  // 3. Handle Grading Logic
+  const handleScoreChange = (criterionName, value, max) => {
+    const safeValue = Math.min(Math.max(0, Number(value)), max);
+    const newScores = { ...scores, [criterionName]: safeValue };
+    setScores(newScores);
     
-    const handleApplyDraft = () => {
-        if (aiDraft) {
-            // Apply draft scores/feedback to the actual mentor review form state (which is passed to ReviewForm)
-            setReviewData(prev => ({
-                ...prev,
-                scores: aiDraft.scores,
-                feedback: aiDraft.feedback,
-            }));
-            alert('AI draft applied to review form fields.');
-        }
-    };
+    // Auto-calculate total
+    const total = Object.values(newScores).reduce((acc, curr) => acc + curr, 0);
+    setTotalScore(total);
+  };
 
-    // --- FEATURE 2 Handler (Plagiarism Check) ---
+  // 4. Submit Evaluation
+  const submitEvaluation = async () => {
+    if (!selectedItem) return;
 
-    const handleRunPlagiarismCheck = async () => {
-        setIsCheckingPlagiarism(true);
-        setError(null);
+    try {
+      const payload = {
+        score: totalScore,
+        feedback: feedback,
+        status: 'Graded'
+      };
 
-        // Ensure submission content exists before calling AI
-        if (!taskData?.submission || taskData.submission.trim() === '') {
-            setError('Cannot run Plagiarism check: No submission content found.');
-            setIsCheckingPlagiarism(false);
-            return;
-        }
+      const { data } = await axios.put(
+        `${API_URL}/task/evaluate/${selectedItem._id}`, // Requires new backend route
+        payload, 
+        { withCredentials: true }
+      );
 
-        try {
-            // BACKEND CALL: POST /api/task/admin/task/:taskId/check/plagiarism
-            const { data } = await authenticatedAxios.post(`/task/admin/task/${taskId}/check/plagiarism`);
-            
-            // Update local taskData state with the new report
-            setTaskData(prev => ({
-                ...prev,
-                plagiarismReport: data.report
-            }));
-            
-            alert(data.message);
-            
-        } catch (err) {
-            console.error('Error running plagiarism check:', err);
-            setError(err.response?.data?.message || 'Failed to run plagiarism check.');
-        } finally {
-            setIsCheckingPlagiarism(false);
-        }
-    };
-    
-    // --- Render ---
+      if (data.success) {
+        alert("Mission Report Updated Successfully");
+        fetchSubmissions(); // Refresh list
+        setSelectedItem(null);
+      }
+    } catch (error) {
+      alert(error.response?.data?.message || "Evaluation upload failed");
+    }
+  };
 
-    if (loading) return <div className="text-center mt-10">Loading evaluation data...</div>;
-    if (error && !loading) return <div className="text-red-500 text-center mt-10">Error: {error}</div>;
-    if (!taskData) return <div className="text-center mt-10">Task details not found.</div>;
-    
-    const plagiarismReport = taskData.plagiarismReport;
-    const isFlagged = plagiarismReport?.status === 'flagged';
-
-    return (
-        <div className="container mx-auto p-4">
-            <h1 className="text-3xl font-bold mb-6">Evaluate Task Submission</h1>
-
-            <TaskDetails task={taskData} /> 
-
-            {/* --- FEATURE 2: Plagiarism Check UI --- */}
-            <section className="mt-6 p-4 border rounded-lg shadow-md bg-white">
-                <h2 className="text-2xl font-semibold mb-3">Plagiarism & Similarity Check</h2>
-                <div className="flex items-center space-x-4 mb-4">
-                    <button
-                        onClick={handleRunPlagiarismCheck}
-                        disabled={isCheckingPlagiarism}
-                        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition duration-200"
-                    >
-                        {isCheckingPlagiarism ? 'Checking Similarity...' : 'Run Plagiarism Check'}
-                    </button>
-                    {isCheckingPlagiarism && <span className="text-sm text-gray-500">Processing...</span>}
-                </div>
-                
-                {plagiarismReport?.status !== 'none' && (
-                    <div className={`p-4 rounded-md border-2 ${isFlagged ? 'bg-red-100 border-red-500' : 'bg-green-100 border-green-500'}`}>
-                        <p className="font-semibold text-lg">
-                            Status: <span className={isFlagged ? 'text-red-700' : 'text-green-700'}>
-                                {plagiarismReport.status.toUpperCase()}
-                            </span>
-                        </p>
-                        <p className="text-sm text-gray-700">Max Similarity Found: **{(plagiarismReport.maxSimilarity * 100).toFixed(2)}%**</p>
-                        <p className="text-xs text-gray-500">Last Checked: {new Date(plagiarismReport.lastChecked).toLocaleString()}</p>
-                        
-                        {isFlagged && plagiarismReport.matchedSubmissions.length > 0 && (
-                            <div className="mt-3">
-                                <p className="font-medium text-red-600">Details of Matches:</p>
-                                <ul className="list-disc list-inside ml-4 text-sm text-red-700">
-                                    {plagiarismReport.matchedSubmissions.map((match, index) => (
-                                        <li key={index} className="mt-1">
-                                            {match.snippet}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </section>
-
-
-            {/* --- FEATURE 1: AI Auto-Review Draft UI --- */}
-            <section className="mt-6 p-4 border rounded-lg shadow-md bg-white">
-                <h2 className="text-2xl font-semibold mb-3">AI Review Draft</h2>
-
-                <button
-                    onClick={handleGenerateAiDraft}
-                    disabled={isDrafting}
-                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-200"
-                >
-                    {isDrafting ? 'Generating Draft...' : 'Generate AI Draft'}
-                </button>
-                
-                {aiDraft && (
-                    <div className="mt-4 p-4 border border-dashed border-blue-500 bg-blue-50 rounded-md">
-                        <h3 className="text-lg font-bold mb-2">AI Draft Results</h3>
-                        <p className="text-sm text-gray-600 mb-2">Generated at: {new Date(aiDraft.generatedAt).toLocaleString()}</p>
-                        
-                        {/* Display AI Scores */}
-                        <div className="mb-3">
-                            <p className="font-medium">Draft Scores:</p>
-                            <ul className="list-disc list-inside ml-4 text-sm">
-                                {/* Use Object.entries to safely iterate over the scores object */}
-                                {Object.entries(aiDraft.scores || {}).map(([key, value]) => (
-                                    <li key={key}>
-                                        <strong>{key}:</strong> {value}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        
-                        {/* Display AI Feedback using ReactMarkdown */}
-                        <p className="font-medium mt-2">Draft Feedback:</p>
-                        <div className="prose max-w-none text-sm p-2 border rounded bg-white">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {aiDraft.feedback}
-                            </ReactMarkdown>
-                        </div>
-                        
-                        <button
-                            onClick={handleApplyDraft}
-                            className="mt-4 bg-green-500 hover:bg-green-700 text-white text-sm py-2 px-4 rounded transition duration-200"
-                        >
-                            Apply AI Draft to Review Form
-                        </button>
-                    </div>
-                )}
-            </section>
-
-            {/* Final Mentor Review Form */}
-            {rubricData && (
-                 <section className="mt-6">
-                    <h2 className="text-2xl font-semibold mb-3">Final Mentor Review</h2>
-                    <ReviewForm 
-                        task={taskData} 
-                        rubric={rubricData} 
-                        initialReview={reviewData} 
-                        setReviewData={setReviewData} 
-                    />
-                </section>
-            )}
-           
-
+  return (
+    <div className="p-4 md:p-8 min-h-screen text-gray-200 font-sans animate-fade-in">
+      
+      {/* Header */}
+      <div className="flex justify-between items-end mb-8 border-b border-red-900/30 pb-4">
+        <div>
+          <h1 className="text-4xl font-creepster text-red-600 tracking-wider glow-text">
+            Evaluation Protocol
+          </h1>
+          <p className="text-gray-400 mt-2 text-sm font-mono">
+            Review field agent submissions and authorize grade clearance.
+          </p>
         </div>
-    );
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* LEFT COLUMN: Submission List */}
+        <div className="lg:col-span-1 space-y-4">
+          <h3 className="text-red-500 font-bold uppercase tracking-widest text-xs border-b border-gray-800 pb-2">
+            Incoming Intel ({submissions.length})
+          </h3>
+          
+          <div className="space-y-3 h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+            {submissions.map((item) => (
+              <div 
+                key={item._id}
+                onClick={() => handleSelectSubmission(item)}
+                className={`p-4 rounded-lg border cursor-pointer transition-all duration-300 ${
+                  selectedItem?._id === item._id 
+                    ? 'bg-red-900/20 border-red-500 shadow-[0_0_15px_rgba(220,38,38,0.3)]' 
+                    : 'bg-gray-900/40 border-gray-800 hover:border-red-900'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <span className="font-bold text-white text-lg">{item.team?.name}</span>
+                  <span className={`text-[10px] px-2 py-1 rounded border uppercase font-bold ${
+                    item.status === 'Graded' ? 'border-green-500 text-green-500' : 'border-yellow-500 text-yellow-500'
+                  }`}>
+                    {item.status}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-400 mb-1">{item.task?.title}</p>
+                <p className="text-xs text-gray-600 font-mono">
+                  Updated: {new Date(item.lastUpdated).toLocaleDateString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: Evaluation Form */}
+        <div className="lg:col-span-2">
+          {selectedItem ? (
+            <div className="bg-gray-900/50 border border-red-900/30 rounded-xl p-6 backdrop-blur-sm relative overflow-hidden">
+              {/* Decorative background element */}
+              <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                <FileText size={120} className="text-red-500" />
+              </div>
+
+              {/* Submission Details */}
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+                  {selectedItem.task?.title}
+                  {selectedItem.submissionLink && (
+                    <a 
+                      href={selectedItem.submissionLink} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded flex items-center gap-1 transition-colors"
+                    >
+                      <Github size={12} /> View Code
+                    </a>
+                  )}
+                </h2>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm bg-black/40 p-4 rounded-lg border border-gray-800">
+                  <div>
+                    <span className="text-gray-500 block">Squad Leader</span>
+                    <span className="text-gray-300">{selectedItem.team?.leader?.name || 'Unknown'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block">Repository</span>
+                    <a href={selectedItem.team?.repoLink} className="text-red-400 hover:underline truncate block">
+                      {selectedItem.team?.repoLink || 'No Repo Linked'}
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Rubric Evaluator */}
+              {rubric ? (
+                <div className="mb-8 animate-fade-in">
+                  <h3 className="text-red-500 font-bold uppercase tracking-widest text-xs mb-4 flex items-center gap-2">
+                    <Calculator size={14} /> Grading Rubric: {rubric.title}
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {rubric.criteria.map((criterion, idx) => (
+                      <div key={idx} className="bg-black/20 p-4 rounded border border-gray-800 flex justify-between items-center group hover:border-red-900/50 transition-colors">
+                        <div className="flex-1">
+                          <p className="text-white font-medium">{criterion.criterionName}</p>
+                          <div className="w-full bg-gray-800 h-1 mt-2 rounded-full overflow-hidden">
+                            <div 
+                              className="bg-red-600 h-full transition-all duration-300" 
+                              style={{ width: `${((scores[criterion.criterionName] || 0) / criterion.maxScore) * 100}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                        <div className="ml-6 flex items-center gap-2">
+                          <input 
+                            type="number"
+                            min="0"
+                            max={criterion.maxScore}
+                            value={scores[criterion.criterionName] || 0}
+                            onChange={(e) => handleScoreChange(criterion.criterionName, e.target.value, criterion.maxScore)}
+                            className="w-16 bg-black border border-gray-700 rounded p-2 text-center text-white focus:border-red-500 outline-none"
+                          />
+                          <span className="text-gray-500 font-mono text-sm">/ {criterion.maxScore}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 flex justify-end items-center gap-4 border-t border-gray-800 pt-4">
+                    <span className="text-gray-400 uppercase text-xs tracking-widest">Total Score</span>
+                    <span className="text-4xl font-creepster text-red-500">{totalScore}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-yellow-900/20 border border-yellow-700/50 rounded mb-6 text-yellow-200 text-sm flex items-center gap-2">
+                   <AlertCircle size={16} /> No grading rubric attached to this mission. Manual scoring enabled.
+                </div>
+              )}
+
+              {/* Feedback Section */}
+              <div className="mb-8">
+                <h3 className="text-gray-400 font-bold uppercase tracking-widest text-xs mb-2">
+                  Mentor Feedback
+                </h3>
+                <textarea
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  placeholder="Enter detailed feedback for the squad..."
+                  className="w-full bg-black/40 border border-gray-700 rounded-lg p-4 text-gray-300 min-h-[150px] focus:border-red-500 outline-none transition-colors"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-4">
+                 <button 
+                   onClick={submitEvaluation}
+                   className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:shadow-[0_0_30px_rgba(220,38,38,0.6)]"
+                 >
+                   <Save size={18} /> Submit Evaluation
+                 </button>
+              </div>
+
+            </div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-gray-600 border-2 border-dashed border-gray-800 rounded-xl bg-gray-900/20 min-h-[400px]">
+              <AlertCircle size={48} className="mb-4 opacity-50" />
+              <p className="uppercase tracking-widest">Select a submission to begin protocol</p>
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
 };
 
 export default AdminEvaluate;

@@ -36,15 +36,15 @@ const AvailableMissions = () => {
     fetchTasks();
   }, [API_URL]);
 
-  const handleAcceptMission = (taskId) => {
+  const handleAcceptMission = (task) => {
     if (!hasTeam) {
       if(window.confirm("You need to be in a team to accept missions. Go to Team Management?")) {
         navigate('/team/me'); 
       }
       return;
     }
-    // Navigate to the acceptance page
-    navigate(`/accept-mission/${taskId}`);
+    // Redirect to Team Management with the mission object in state
+    navigate('/team/me', { state: { missionToApply: task } });
   };
 
   if (loading) {
@@ -88,7 +88,7 @@ const AvailableMissions = () => {
             <MissionCard 
               key={task._id} 
               task={task} 
-              onAccept={handleAcceptMission} 
+              onAccept={() => handleAcceptMission(task)} 
               hasTeam={hasTeam}
               level={task.index}
             />

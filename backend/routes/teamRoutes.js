@@ -21,6 +21,9 @@ import {
   submitMissionProgress,
 } from "../controllers/teamController.js";
 
+import { applyForMission } from "../controllers/teamController.js";
+// ...
+
 
 
 const router = express.Router();
@@ -48,4 +51,5 @@ router.get("/my-missions", isAuthenticated, getMyTeamMissions);
 router.put("/update-member", isAuthenticated, updateTeamMember);
 router.post("/submit-progress", isAuthenticated, submitMissionProgress);
 
+router.post("/apply-mission", isAuthenticated, applyForMission);
 export default router;
